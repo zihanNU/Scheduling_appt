@@ -121,11 +121,18 @@ def process_histloads(df, city_df):
     df['DO_Arrive'] = pd.to_datetime(df['DO_Arrive'], errors='coerce')
     city_features = ['CityID', 'Latitude', 'Longitude', 'offset']
     df = pd.merge(df, city_df[city_features], left_on=["PUCityID"], right_on=["CityID"], how='left')
+    df.drop(columns=['CityID'], inplace=True)
     df = df.rename(columns=name_mapper_origin)
     df = pd.merge(df, city_df[city_features], left_on=["DOCityID"], right_on=["CityID"], how='left')
     df = df.rename(columns=name_mapper_dest)
+    df.drop(columns=['CityID'], inplace=True)
     df['PU_Transit_Minute'] = (df['DO_Arrive'] - df['PU_Depart']) / pd.Timedelta('1min') + \
                               (df['DOOffset'] - df['PUOffset']) * 60
+    # hour_bucket = [0, 5, 8, 11, 14, 18, 21, 25]
+    # df['PU_Bucket'] = pd.cut(df['PU_Hour'], bins=hour_bucket).cat.codes
+    # df['DO_Bucket'] = pd.cut(df['DO_Hour'], bins=hour_bucket).cat.codes
+
+
     return df
 
 
@@ -154,4 +161,4 @@ def test_function():
         print('Train Data Processing Done')
     except Exception as e:
         LOGGER.exception(e)
-test_function()
+

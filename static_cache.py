@@ -45,7 +45,7 @@ def build_pickle_offset_initial():
         cityinfo = cityinfo.sort_values('UpdateDate', ascending=True).drop_duplicates(subset=['CityID'], keep='last')
         if os.path.exists(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl')):
             cityinfo_origin = pd.read_pickle(
-                os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_offset.pkl'))
+                os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl'))
             cityinfo_origin = cityinfo_origin.sort_values('UpdateDate', ascending=True).drop_duplicates(subset=['CityID'], keep='last')
             max_timestamp = cityinfo_origin.UpdateDate.max()
             cityinfo_new = cityinfo.loc[cityinfo['UpdateDate']>max_timestamp]
@@ -91,7 +91,7 @@ def build_pickle_hist_loads_df(city_df):
 
 def hist_cache():
     os.makedirs(CONFIG.MODEL_PATH, exist_ok=True)
-    daily_update()
+    #daily_update()
     LOGGER.info('Update Historical Data...')
     #### Initilizer Start#####
 

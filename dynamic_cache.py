@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 
 import config
-from engines.dataprocessing import dynamic_process_loads
+from engines.dataprocessing import process_liveloads
 from engines.query import QueryEngine
 
 
@@ -20,8 +20,8 @@ def main():
     city_info = pd.read_pickle(
             os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl'))
     newloads_df = QUERY.get_liveload()
-    loads_df = dynamic_process_loads(newloads_df, city_info)
-    loads_df.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'df_live_bazooka_loads_cf.pkl'))
+    loads_df = process_liveloads(newloads_df, city_info)
+    loads_df.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'live_bazooka_loads.pkl'))
     LOGGER.info('Loading Live Data Done...')
     return loads_df
 

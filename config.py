@@ -44,8 +44,10 @@ class Config(object):
 
     HISTDATASTART = int(node.xpath('//add[@key="histDataStart"]')[0].attrib['value'])
     # the start days (going back) to find the historical load and search history for carrier
-    LOCALTIMEZONE =  node.xpath('//add[@key="localTimeZone"]')[0].attrib['value']
+    LOCALTIMEZONE = node.xpath('//add[@key="localTimeZone"]')[0].attrib['value']
     SIMILARITY_REF = float(node.xpath('//add[@key="similarityRef"]')[0].attrib['value'])
+    WEIGHTSCALE = int(node.xpath('//add[@key="weightScale"]')[0].attrib['value'])
+    MILESCALE = int(node.xpath('//add[@key="mileScale"]')[0].attrib['value'])
 
 
 
