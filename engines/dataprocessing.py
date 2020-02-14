@@ -53,7 +53,7 @@ def encode_load(df, columnname):
 
 
 
-def process_liveloads(df, city_df):
+def process_liveloads(df, city_df, cluster_df):
     LOGGER.info('Loading Live Data, Available loads...')
     #newloads_df = newloads_df[(newloads_df['Division'].isin([1, 2, 3, 4]))& (newloads_df['ShipmentType'].isin([0, 1, 2, 5]))]
     #newloads_df = newloads_df[newloads_df['TotalRate'] > 150]
@@ -65,6 +65,12 @@ def process_liveloads(df, city_df):
     df['PU_time'] = pd.to_datetime(df['PU_time'], errors='coerce')
     df['DO_time'] = pd.to_datetime(df['DO_time'], errors='coerce')
     df['UpdateDate'] = pd.to_datetime(df['UpdateDate'], errors='coerce')
+    df = pd.merge(df, cluster_df, left_on=["PUCityID"], right_on=["CityID"], how='left')
+    df.drop(columns=['CityID'], inplace=True)
+    df = df.rename(columns={'ClusterID': 'OriginClusterID'})
+    df = pd.merge(df, cluster_df, left_on=["DOCityID"], right_on=["CityID"], how='left')
+    df.drop(columns=['CityID'], inplace=True)
+    df = df.rename(columns={'ClusterID': 'DestinationClusterID'})
 
 
     # only select those which need schedules
@@ -104,49 +110,61 @@ def process_liveloads(df, city_df):
     return newloads_df
 
 
-def process_histloads(df, city_df):
+def process_histloads(df, city_df, cluster_df):
     LOGGER.info('searching for lat and long')
     name_mapper_origin = {'Latitude': 'OriginLatitude',
                           'Longitude': 'OriginLongitude',
-                          'offset': 'PUOffset'
+                          'offset': 'PUOffset',
+                          'ClusterID': 'OriginClusterID'
                           }
     name_mapper_dest = {
         'Latitude': 'DestinationLatitude',
         'Longitude': 'DestinationLongitude',
-        'offset': 'DOOffset'
+        'offset': 'DOOffset',
+        'ClusterID': 'DestinationClusterID'
     }
     df['PU_Arrive'] = pd.to_datetime(df['PU_Arrive'], errors='coerce')
     df['PU_Depart'] = pd.to_datetime(df['PU_Depart'], errors='coerce')
-    df['PU_Dwell_Minute'] = (df['PU_Depart'] - df['PU_Arrive']) / pd.Timedelta('1min')
+    df['PU_Dwell_Minute'] = np.nan
+    PU_depart_ind = (df['PU_Depart'] - df['PU_Appt'])/ pd.Timedelta(1, unit='M')).values.astype(np.float32) > 0
+    PU_appt_ind = (df['PU_Appt'] - df['PU_Arrival']) / pd.Timedelta(1, unit='M')).values.astype(np.float32) > 0
+
+    df['PU_Dwell_Minute'].loc[PU_depart_ind & PU_appt_ind] = (df['PU_Depart'] - df['PU_Appt']) / pd.Timedelta('1min')
+    df['PU_Dwell_Minute'].loc[PU_depart_ind & ~PU_appt_ind] = (df['PU_Depart'] - df['PU_Arrival']) / pd.Timedelta('1min')
     df['DO_Arrive'] = pd.to_datetime(df['DO_Arrive'], errors='coerce')
     city_features = ['CityID', 'Latitude', 'Longitude', 'offset']
     df = pd.merge(df, city_df[city_features], left_on=["PUCityID"], right_on=["CityID"], how='left')
     df.drop(columns=['CityID'], inplace=True)
+    df = pd.merge(df, cluster_df, left_on=["PUCityID"], right_on=["CityID"], how='left')
+    df.drop(columns=['CityID'], inplace=True)
     df = df.rename(columns=name_mapper_origin)
     df = pd.merge(df, city_df[city_features], left_on=["DOCityID"], right_on=["CityID"], how='left')
-    df = df.rename(columns=name_mapper_dest)
     df.drop(columns=['CityID'], inplace=True)
+    df = pd.merge(df, cluster_df, left_on=["DOCityID"], right_on=["CityID"], how='left')
+    df.drop(columns=['CityID'], inplace=True)
+    df = df.rename(columns=name_mapper_dest)
     df['PU_Transit_Minute'] = (df['DO_Arrive'] - df['PU_Depart']) / pd.Timedelta('1min') + \
                               (df['DOOffset'] - df['PUOffset']) * 60
     # hour_bucket = [0, 5, 8, 11, 14, 18, 21, 25]
     # df['PU_Bucket'] = pd.cut(df['PU_Hour'], bins=hour_bucket).cat.codes
     # df['DO_Bucket'] = pd.cut(df['DO_Hour'], bins=hour_bucket).cat.codes
-
-
     return df
 
 
 def test_function():
     try:
         city_df = pd.read_pickle(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl')).reset_index()
+        cluster_df = pd.read_pickle(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_cluster_info.pkl')).reset_index()
     except Exception as e:
+        ## Note here we need to identify columns and dtypes
         city_df = pd.DataFrame()
+        cluster_df = pd.DataFrame()
         LOGGER.error("Cannot Find city_df File")
         LOGGER.exception(e)
 
     try:
         test_data = pd.read_csv(os.path.join(CONFIG.MODEL_PATH, 'test_data.csv'))
-        test_data_processed = process_liveloads(test_data, city_df)
+        test_data_processed = process_liveloads(test_data, city_df, cluster_df)
         test_data_processed.to_csv(os.path.join(CONFIG.MODEL_PATH, 'test_data_processed.csv'), index=False)
         LOGGER.info('Test Data Processing Done')
         print('Test Data Processing Done')
@@ -155,10 +173,10 @@ def test_function():
 
     try:
         train_data = pd.read_csv(os.path.join(CONFIG.MODEL_PATH, 'train_data.csv'))
-        train_data = process_histloads(train_data,  city_df)
+        train_data = process_histloads(train_data,  city_df, cluster_df)
         train_data.to_csv(os.path.join(CONFIG.MODEL_PATH, 'train_data_processed.csv'), index=False)
         LOGGER.info('Train Data Processing Done')
         print('Train Data Processing Done')
     except Exception as e:
         LOGGER.exception(e)
-
+test_function()

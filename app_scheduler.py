@@ -75,8 +75,9 @@ if __name__ == '__main__':
 
     newloads_part1_df = newloads_df.loc[(newloads_df['PU_Appt'].isna()) & (newloads_df['DO_Appt'].isna())]
     newloads_part2_df = newloads_df.loc[~newloads_df['LoadID'].isin(newloads_part1_df['LoadID'].tolist())]
-
-    newloads_part1_scheduling_df = scheduler_ml(newloads_part1_df, histloads_df)
-    newloads_part2_scheduling_df = scheduler_rule(newloads_part2_df, histloads_df)
-    newloads_result_df = pd.concat([newloads_part1_scheduling_df, newloads_part2_scheduling_df])
+    if newloads_part1_df.shape[0] > 0:
+        newloads_part1_scheduling_df = scheduler_ml(newloads_part1_df, histloads_df)
+    if newloads_part2_df.shape[0] > 0:
+        newloads_part2_scheduling_df = scheduler_rule(newloads_part2_df, histloads_df)
+    newloads_result_df = pd.concat([newloads_part1_scheduling_df, newloads_part2_scheduling_df], axis=0)
     #newloads_result_df = scheduler_feasibility(newloads_result_df, facility_hour_df)

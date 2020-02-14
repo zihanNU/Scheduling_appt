@@ -39,7 +39,7 @@ def daily_update():
     LOGGER.info("Completed daily_update in {:.2f}s".format(time.time() - time_start))
     return
 
-def build_pickle_offset_initial():
+def build_pickle_offset_info():
     try:
         cityinfo = QUERY.get_cityinfo_initial()
         cityinfo = cityinfo.sort_values('UpdateDate', ascending=True).drop_duplicates(subset=['CityID'], keep='last')
@@ -52,7 +52,7 @@ def build_pickle_offset_initial():
             if 'offset' not in cityinfo_origin.columns:
                 cityinfo['offset'] = cityinfo.apply(
                     lambda x: offset(x['TimeZone']), axis=1)
-            elif cityinfo_new.shape[0]>0:
+            elif cityinfo_new.shape[0] > 0:
                 cityinfo_new['offset'] = cityinfo_new.apply(
                     lambda x: offset(x['TimeZone']), axis=1)
                 cityinfo = pd.concat([cityinfo_origin,cityinfo_new]).reset_index(drop=True)
@@ -67,10 +67,25 @@ def build_pickle_offset_initial():
             os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl'))
     except Exception as ex:
         LOGGER.exception("Exception while running get_cityinfo_initial(): {}".format(repr(ex)))
-        LOGGER.warn("Continuing with empty cargolimit df")
     return cityinfo
 
-def build_pickle_hist_loads_df(city_df):
+def build_pickle_cluster_info():
+    cluster_info = None
+    backoff_index = 0
+    while cluster_info is None:
+        try:
+            cluster_info = QUERY.get_cluster_initial()
+        except Exception as ex:
+            LOGGER.exception("Exception while running get_cluster_initial(): (attempt=={}): {}".format(
+                backoff_index, repr(ex)))
+            backoff_index += 1  # begin at BACKOFF_FACTOR seconds
+            time.sleep(min(BACKOFF_FACTOR**backoff_index, MAX_BACKOFF))
+    cluster_info['ClusterID'] = cluster_info['ClusterID'].fillna(-99).astype(np.int32)
+    cluster_info.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_cluster_info.pkl'))
+    return cluster_info
+
+
+def build_pickle_hist_loads_df(city_df, cluster_df):
     hist_loads = None
     backoff_index = 0
     while hist_loads is None:
@@ -84,7 +99,7 @@ def build_pickle_hist_loads_df(city_df):
 
     LOGGER.info('Successfully read carrier_loads_df, processing..')
     ### This part is dependent on new sp
-    hist_loads_df = process_histloads(hist_loads, city_df)
+    hist_loads_df = process_histloads(hist_loads, city_df, cluster_df)
     hist_loads_df.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_histloads.pkl'))
     return
 
@@ -96,8 +111,8 @@ def hist_cache():
     #### Initilizer Start#####
 
     LOGGER.info('Cache city data...')
-    city_df = build_pickle_offset_initial()
-
+    city_df = build_pickle_offset_info()
+    cluster_df = build_pickle_cluster_info()
     LOGGER.info('Cache load history data...')
     build_pickle_hist_loads_df(city_df)
 
