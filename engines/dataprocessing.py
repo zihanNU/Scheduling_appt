@@ -57,6 +57,9 @@ def process_liveloads(df, city_df, cluster_df):
     LOGGER.info('Loading Live Data, Available loads...')
     #newloads_df = newloads_df[(newloads_df['Division'].isin([1, 2, 3, 4]))& (newloads_df['ShipmentType'].isin([0, 1, 2, 5]))]
     #newloads_df = newloads_df[newloads_df['TotalRate'] > 150]
+    haul_bucket = [0, 200, 450, 600, 800, 1000, 1200, 1500, 2000, 2500, max(5000, df['Miles'].max())]
+    df['haul'] = pd.cut(df['Miles'], bins=haul_bucket).cat.codes
+    df['haul'] = df['haul']*10
     df['LoadDate'] = pd.to_datetime(df['LoadDate'], errors='coerce').dt.normalize()
     df['PU_ScheduleCloseTime'] = pd.to_datetime(df['PU_ScheduleCloseTime'], errors='coerce')
     df['DO_ScheduleCloseTime'] = pd.to_datetime(df['DO_ScheduleCloseTime'], errors='coerce')
@@ -123,24 +126,32 @@ def process_histloads(df, city_df, cluster_df):
         'offset': 'DOOffset',
         'ClusterID': 'DestinationClusterID'
     }
+    haul_bucket = [0, 200, 450, 600, 800, 1000, 1200, 1500, 2000, 2500, max(5000, df['Miles'].max())]
+    df['haul'] = pd.cut(df['Miles'], bins=haul_bucket).cat.codes
+    df['haul'] = df['haul']*10
     df['PU_Arrive'] = pd.to_datetime(df['PU_Arrive'], errors='coerce')
+    df['PU_Appt'] = pd.to_datetime(df['PU_Appt'], errors='coerce')
     df['PU_Depart'] = pd.to_datetime(df['PU_Depart'], errors='coerce')
-    df['PU_Dwell_Minute'] = np.nan
-    PU_depart_ind = (df['PU_Depart'] - df['PU_Appt'])/ pd.Timedelta(1, unit='M')).values.astype(np.float32) > 0
-    PU_appt_ind = (df['PU_Appt'] - df['PU_Arrival']) / pd.Timedelta(1, unit='M')).values.astype(np.float32) > 0
-
-    df['PU_Dwell_Minute'].loc[PU_depart_ind & PU_appt_ind] = (df['PU_Depart'] - df['PU_Appt']) / pd.Timedelta('1min')
-    df['PU_Dwell_Minute'].loc[PU_depart_ind & ~PU_appt_ind] = (df['PU_Depart'] - df['PU_Arrival']) / pd.Timedelta('1min')
     df['DO_Arrive'] = pd.to_datetime(df['DO_Arrive'], errors='coerce')
+    df['PU_Dwell_Minute'] = np.nan
+    PU_depart_ind1 = (df['PU_Depart'].values - df['PU_Arrive'].values).astype(np.float32)>=0
+    PU_depart_ind2 = (df['PU_Depart'].values - df['PU_Appt'].values).astype(np.float32)>=0
+    PU_appt_ind = (df['PU_Appt'].values - df['PU_Arrive'].values).astype(np.float32) >= 0
+
+    df['PU_Dwell_Minute'].loc[PU_depart_ind2&PU_appt_ind] = (df['PU_Depart'].loc[PU_depart_ind2 & PU_appt_ind]
+                                                         - df['PU_Appt'].loc[PU_depart_ind2 & PU_appt_ind]) / pd.Timedelta('1min')
+    df['PU_Dwell_Minute'].loc[PU_depart_ind1 & ~PU_appt_ind] = (df['PU_Depart'].loc[PU_depart_ind1 & ~PU_appt_ind]
+                                                           - df['PU_Arrive'].loc[PU_depart_ind1 & ~PU_appt_ind]) / pd.Timedelta('1min')
+    df.dropna(inplace=True)
     city_features = ['CityID', 'Latitude', 'Longitude', 'offset']
     df = pd.merge(df, city_df[city_features], left_on=["PUCityID"], right_on=["CityID"], how='left')
     df.drop(columns=['CityID'], inplace=True)
-    df = pd.merge(df, cluster_df, left_on=["PUCityID"], right_on=["CityID"], how='left')
+    df = pd.merge(df, cluster_df[['CityID','ClusterID']], left_on=["PUCityID"], right_on=["CityID"], how='left')
     df.drop(columns=['CityID'], inplace=True)
     df = df.rename(columns=name_mapper_origin)
     df = pd.merge(df, city_df[city_features], left_on=["DOCityID"], right_on=["CityID"], how='left')
     df.drop(columns=['CityID'], inplace=True)
-    df = pd.merge(df, cluster_df, left_on=["DOCityID"], right_on=["CityID"], how='left')
+    df = pd.merge(df, cluster_df[['CityID','ClusterID']], left_on=["DOCityID"], right_on=["CityID"], how='left')
     df.drop(columns=['CityID'], inplace=True)
     df = df.rename(columns=name_mapper_dest)
     df['PU_Transit_Minute'] = (df['DO_Arrive'] - df['PU_Depart']) / pd.Timedelta('1min') + \
