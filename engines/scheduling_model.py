@@ -34,9 +34,9 @@ def scheduler_model(newloads_df1, newloads_df2, histloads_df):
     --Need to call Dwell and Travel similarity to calculate
 
     Type C:
-    (2) both facility need Appt, but only one side have enough data to check
+    both facility need Appt, but only one side have enough data to check
 
-    Type D: both
+    Type D: both facility need Appt, but both side do not have enough data.
 
 
     :param newloads_df:
