@@ -23,7 +23,7 @@ def join_All_agg(facility_hour_ml_df):
     return hour_ml_agg_df_select
 
 
-def scheduler_model(newloads_df1, newloads_df2, histloads_df):
+def scheduler_model(newloads_df, histloads_df):
     '''
     Defines four type of models:
     Type A: both facility have enough hist loads to check, and both appt needs appointment.
@@ -39,7 +39,8 @@ def scheduler_model(newloads_df1, newloads_df2, histloads_df):
     Type D: both facility need Appt, but both side do not have enough data.
 
 
-    :param newloads_df:
+    :param newloads_df1: both need appts
+    :param newloads_df1: only one need appts
     :param histloads_df:
     :return:
     '''
@@ -51,13 +52,13 @@ def scheduler_model(newloads_df1, newloads_df2, histloads_df):
     ## Statistics based --ML Similarity
 
 
-    facility_hour_A = join_All_agg(similarity_cal_all(df))
+    facility_hour_A = join_All_agg(facility_hour_all_df)
 
 
 
 def scheduler_ml(newloads_df, histloads_df): #Type A and D
 
-    hour_ml_df = similarity_join_score_np(facility_hour_ml_df, model_flag=0)
+    hour_ml_df = similarity_join_score(facility_hour_ml_df, model_flag=0)
 
 
 def scheduler_rule(newloads_df, histloads_df):  #Type B and C

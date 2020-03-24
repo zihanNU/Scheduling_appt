@@ -74,7 +74,7 @@ def similarity_check(newloads_df, histloads_df):
     return dict_all
 
 
-def similarity_join_np(facility_hour_ml_df, model_flag):
+def similarity_join_score(facility_hour_ml_df, model_flag):
     ###model_flag: 0 for both, 1 for pu -1 for do.
     facility_hour_ml_df = facility_hour_ml_df.sort_values(by=['LoadID', 'similarity'], ascending=False)
     if model_flag >= 0:
