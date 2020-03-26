@@ -17,7 +17,7 @@ import datetime
 from engines.initialization import init_read_histload
 from engines.initialization import init_read_facility, init_read_liveload
 from engines.query import QueryEngine
-from engines.scheduling_model import scheduler_ml, scheduler_rule
+from engines.scheduling_model import scheduler_model
 from engines.dataprocessing import process_liveloads
 
 import config
@@ -73,11 +73,7 @@ if __name__ == '__main__':
 
     LOGGER.info("*** System Initialization Done ***")
 
-    newloads_part1_df = newloads_df.loc[(newloads_df['PU_Appt'].isna()) & (newloads_df['DO_Appt'].isna())]
-    newloads_part2_df = newloads_df.loc[~newloads_df['LoadID'].isin(newloads_part1_df['LoadID'].tolist())]
-    if newloads_part1_df.shape[0] > 0:
-        newloads_part1_scheduling_df = scheduler_ml(newloads_part1_df, histloads_df)
-    if newloads_part2_df.shape[0] > 0:
-        newloads_part2_scheduling_df = scheduler_rule(newloads_part2_df, histloads_df)
-    newloads_result_df = pd.concat([newloads_part1_scheduling_df, newloads_part2_scheduling_df], axis=0)
+    newloads_part1_ind = (newloads_df['PU_Appt'].isna()) & (newloads_df['DO_Appt'].isna())
+    newload_results_df = scheduler_model(newloads_df, histloads_df, newloads_part1_ind)
+
     #newloads_result_df = scheduler_feasibility(newloads_result_df, facility_hour_df)
