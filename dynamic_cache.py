@@ -2,7 +2,6 @@ import os
 import logging
 
 import pandas as pd
-import numpy as np
 
 import config
 from engines.dataprocessing import process_liveloads
@@ -12,6 +11,7 @@ from engines.query import QueryEngine
 LOGGER = logging.getLogger(__name__)
 CONFIG = config.Config()
 QUERY = QueryEngine()
+
 
 def main():
     #for independent test, to make this file run independent from trucknorris_live_sql.py to save testing time
@@ -25,9 +25,9 @@ def main():
     LOGGER.info('Loading Live Data Done...')
     return loads_df
 
+
 if __name__ == '__main__':
     main()
-
 
 
 def get_livedata():
@@ -45,7 +45,7 @@ def get_livedata():
         updatedatetime = loads_df.UpdateDate.max()
         newloads_df = newloads_df.loc[newloads_df[updatedatetime] > updatedatetime]
         loads_df_new = process_liveloads(newloads_df, city_info)
-        loads_df = pd.concat([loads_df, loads_df_new])
+        loads_df = pd.concat([loads_df, loads_df_new], axis=0)
         loads_df.reset_index(drop=True, inplace=True)
     else:
         loads_df = process_liveloads(newloads_df, city_info)
@@ -53,3 +53,4 @@ def get_livedata():
     loads_df.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'df_live_bazooka_loads_cf.pkl'))
     LOGGER.info('Loading Live Data Done...')
     return loads_df
+

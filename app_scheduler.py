@@ -32,33 +32,11 @@ CONFIG = config.Config()
 
 LOGGER = logging.getLogger(__name__)
 
-Weekday_Mapper = {0:'Monday',1:'Tuesday',2:'Wednesday',3:'Thursday',4:'Friday',5:'Saturday',6:'Sunday'}
+Weekday_Mapper = {0:'Monday', 1:'Tuesday', 2:'Wednesday', 3:'Thursday', 4:'Friday', 5:'Saturday', 6:'Sunday'}
 
 
 def scheduler_feasibility(newloads_df,facility_hour_df):
     return None
-
-def get_liveloads():
-    city_info = pd.read_pickle(
-        os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl'))
-    loads_file_name = 'live_bazooka_loads_{}.pkl'.format(pd.Timestamp('today').date())
-    loads_file = os.path.join(CONFIG.MODEL_PATH, loads_file_name)
-    try:
-        newloads_df = QUERY.get_liveload()
-    except Exception as e:
-        LOGGER.exception(e)
-    if os.path.exist(loads_file):
-        loads_df = pd.read_pickle(loads_file)
-        updated_df = newloads_df.loc[newloads_df['UpdateDate'] > loads_df['UpdateDate'].max()]
-        newloads_update_df = process_liveloads(updated_df, city_info)
-        loads_df = pd.concat([loads_df,newloads_update_df], axis=0)
-    else:
-        loads_df = process_liveloads(newloads_df, city_info)
-    loads_df.to_pickle(loads_file)
-    LOGGER.info('Loading Live Data Done...')
-    return loads_df
-
-
 
 if __name__ == '__main__':
     LOGGER.info("*** System Initialization ***")
@@ -74,6 +52,7 @@ if __name__ == '__main__':
     LOGGER.info("*** System Initialization Done ***")
 
     newloads_part1_ind = (newloads_df['PU_Appt'].isna()) & (newloads_df['DO_Appt'].isna())
+    newloads_part1_id = newloads_df.loc[newloads_part1_ind,'LoadID'].tolist()
     newload_results_df = scheduler_model(newloads_df, histloads_df, newloads_part1_ind)
 
     #newloads_result_df = scheduler_feasibility(newloads_result_df, facility_hour_df)
