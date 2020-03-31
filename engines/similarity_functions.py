@@ -74,19 +74,6 @@ def similarity_check(newloads_df, histloads_df):
     return dict_all
 
 
-def similarity_join_score(facility_hour_ml_df, model_flag):
-    ###model_flag: 0 for both, 1 for pu -1 for do.
-    facility_hour_ml_df = facility_hour_ml_df.sort_values(by=['LoadID', 'similarity'], ascending=False)
-    if model_flag >= 0:
-        hour_ml = facility_hour_ml_df.groupby(['LoadID'], as_index=False)[['PU_Hour_ml']].median()
-        #hour_ml['PU_Hour_ml']=hour_ml['PU_Hour_ml']/hour_ml['similarity']
-    if model_flag <= 0:
-        hour_ml = facility_hour_ml_df.groupby(['LoadID'], as_index=False)[['similarity', 'DO_Hour_ml']].sum()
-        hour_ml['DO_Hour_ml'] = hour_ml['DO_Hour_ml'] / hour_ml['similarity']
-    hour_ml.columns = ['LoadID', 'PU_Hour_ml', 'DO_Hour_ml']
-    return hour_ml
-
-
 def similarity_cal_all(df):
     histload_feature = {'weight': df['hist_weight']/CONFIG.WEIGHTSCALE,
                         'length': df['hist_miles']/CONFIG.MILESCALE,
@@ -112,7 +99,7 @@ def similarity_cal_all(df):
               'Transit': df['PU_Transit_Minute'],
               'Dwell': df['PU_Dwell_Minute']
               }
-    return sim_df
+    return pd.DataFrame(sim_df)
 
 
 def similarity_cal_dwell(df):
@@ -178,7 +165,7 @@ def similarity_cal_travel(df):
               'DestCluster': df['new_DestClusterID'],
               'Transit': df['PU_Transit_Minute']
               }
-    return sim_df
+    return pd.DataFrame(sim_df)
 
 
 def similarity_cal_area(df):
@@ -216,4 +203,17 @@ def similarity_cal_area(df):
               'Dwell': df['PU_Dwell_Minute'],
               'Transit': df['PU_Transit_Minute']
               }
-    return sim_df
+    return pd.DataFrame(sim_df)
+
+
+def similarity_join_score(facility_hour_ml_df, model_flag):
+    ###model_flag: 0 for both, 1 for pu -1 for do.
+    facility_hour_ml_df = facility_hour_ml_df.sort_values(by=['LoadID', 'similarity'], ascending=False)
+    if model_flag >= 0:
+        hour_ml = facility_hour_ml_df.groupby(['LoadID'], as_index=False)[['PU_Hour_ml']].median()
+        #hour_ml['PU_Hour_ml']=hour_ml['PU_Hour_ml']/hour_ml['similarity']
+    if model_flag <= 0:
+        hour_ml = facility_hour_ml_df.groupby(['LoadID'], as_index=False)[['similarity', 'DO_Hour_ml']].sum()
+        hour_ml['DO_Hour_ml'] = hour_ml['DO_Hour_ml'] / hour_ml['similarity']
+    hour_ml.columns = ['LoadID', 'PU_Hour_ml', 'DO_Hour_ml']
+    return hour_ml
