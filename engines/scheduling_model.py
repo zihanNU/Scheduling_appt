@@ -146,8 +146,12 @@ def scheduler_rule(newload_df, dwell_df, transit_df):  #Type B and C
     newload_df['traveltime'] = newload_df['Miles'].values / speed_base
     newload_df['resttime'] = np.int(newload_df['traveltime'].values/10) * 10 + np.int32(newload_df['traveltime'].values/4)
     newload_df['transit'] = newload_df['traveltime'] + newload_df['resttime']
+    newload_df['dwelltime'] = dwell_df
+    newload_df['traveltime'] = transit_df
+
     newload_df['pu_scheduletime'] = pd.NaT
     newload_df['do_scheduletime'] = pd.NaT
-    newload_df.loc[do_newloaddf, 'do_scheduletime']
+    newload_df.loc[do_newloaddf, 'do_scheduletime'] = newload_df.loc[do_newloaddf, 'pu_appt'] + newload_df['transit'] + newload_df['dwelltime']
+    newload_df.loc[pu_newloaddf, 'pu_scheduletime'] = newload_df.loc[pu_newloaddf, 'do_appt'] - newload_df['transit'] - newload_df['dwelltime']
 
 
