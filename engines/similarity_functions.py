@@ -19,7 +19,7 @@ def similarity_check(newloads_df, histloads_df):
     newhistjoin_df1 = newloads_df[newloadfeatures]
     newhistjoin_df1.columns = ['LoadID', 'new_miles', 'new_weight', 'new_PF', 'new_customer', 'new_DF',
                                'new_Orig_Cluster', 'new_Dest_Cluster',
-                               'new_originLat','new_originLon', 'new_destinationLat', 'new_destinationLon',
+                               'new_originLat', 'new_originLon', 'new_destinationLat', 'new_destinationLon',
                                ]
     histloadfeatures = ['LoadID', 'PU_Hour', 'DO_Hour', 'PU_Transit_Minute', 'PU_Dwell_Minute',
                         'Miles', 'TotalWeight',
@@ -37,7 +37,7 @@ def similarity_check(newloads_df, histloads_df):
                                ]
     joinAll_df = newhistjoin_df1.merge(newhistjoin_df2, left_on=["new_PF", "new_DF"],
                                        right_on=["PU_Facility", "DO_Facility"], how='inner')
-    joinAll_df.drop(['new_PF', 'new_DF', 'new_Orig_Cluster', 'new_Dest_Cluster',  'hist_Orig_Cluster','hist_Dest_Cluster',
+    joinAll_df.drop(['new_PF', 'new_DF', 'new_Orig_Cluster', 'new_Dest_Cluster',  'hist_Orig_Cluster', 'hist_Dest_Cluster',
                      'new_originLat', 'new_originLon', 'new_destinationLat', 'new_destinationLon',
                      'hist_originLat', 'hist_originLon', 'hist_destinationLat', 'hist_destinationLon',
                      ], axis=1, inplace=True)
@@ -77,12 +77,12 @@ def similarity_check(newloads_df, histloads_df):
 def similarity_cal_all(df):
     histload_feature = {'weight': df['hist_weight']/CONFIG.WEIGHTSCALE,
                         'length': df['hist_miles']/CONFIG.MILESCALE,
-                        'pallet': df['hist_pallet'] / CONFIG.WEIGHTSCALE,
+                        #'pallet': df['hist_pallet'] / CONFIG.WEIGHTSCALE,
                         }
     histload_df = pd.DataFrame(histload_feature).astype(np.float32)
     newload_feature = {'weight': df['new_weight']/CONFIG.WEIGHTSCALE,
                        'length': df['new_miles']/CONFIG.MILESCALE,
-                       'pallet': df['new_pallet'] / CONFIG.WEIGHTSCALE,
+                       #'pallet': df['new_pallet'] / CONFIG.WEIGHTSCALE,
                        }
     newload_df = pd.DataFrame(newload_feature).astype(np.float32)
     sim_row = ((histload_df.values / norm(histload_df.values, axis=1)[:, np.newaxis]) * (
@@ -90,12 +90,12 @@ def similarity_cal_all(df):
     sim_df = {'LoadID': df['LoadID'],
               'histloadID': df['histloadID'],
               'similarity': sim_row,
-              'PU_FacilityID': df['PUFacilityID'],
+              'PU_FacilityID': df['PU_Facility'],
               'PU_Hour': df['PU_Hour'],
-              'PU_Bucket': df['PUBucket'],
-              'DO_FacilityID': df['DOFacilityID'],
+              'PU_Bucket': df['PU_Bucket'],
+              'DO_FacilityID': df['DO_Facility'],
               'DO_Hour': df['DO_Hour'],
-              'DO_Bucket': df['DOBucket'],
+              'DO_Bucket': df['DO_Bucket'],
               'Transit': df['PU_Transit_Minute'],
               'Dwell': df['PU_Dwell_Minute']
               }
@@ -105,12 +105,12 @@ def similarity_cal_all(df):
 def similarity_cal_dwell(df):
     histload_feature = {'weight': df['hist_weight']/CONFIG.WEIGHTSCALE,
                         'length': df['hist_miles']/CONFIG.MILESCALE,
-                        'pallet': df['hist_pallet'] / CONFIG.WEIGHTSCALE,
+                        #'pallet': df['hist_pallet'] / CONFIG.WEIGHTSCALE,
                         }
     histload_df = pd.DataFrame(histload_feature).astype(np.float32)
     newload_feature = {'weight': df['new_weight']/CONFIG.WEIGHTSCALE,
                        'length': df['new_miles']/CONFIG.MILESCALE,
-                       'pallet': df['new_pallet'] / CONFIG.WEIGHTSCALE,
+                       #'pallet': df['new_pallet'] / CONFIG.WEIGHTSCALE,
                        }
     newload_df = pd.DataFrame(newload_feature).astype(np.float32)
     sim_row = ((histload_df.values / norm(histload_df.values, axis=1)[:, np.newaxis]) * (
@@ -118,12 +118,12 @@ def similarity_cal_dwell(df):
     sim_df = {'LoadID': df['LoadID'],
               'histloadID': df['histloadID'],
               'similarity': sim_row,
-              'PU_FacilityID': df['PUFacilityID'],
+              'PU_FacilityID': df['PU_Facility'],
               'PU_Hour': df['PU_Hour'],
-              'PU_Bucket': df['PUBucket'],
+              'PU_Bucket': df['PU_Bucket'],
               'Dwell': df['PU_Dwell_Minute']
               }
-    return sim_df
+    return pd.DataFrame(sim_df)
 
 
 def similarity_cal_travel(df):
@@ -146,14 +146,14 @@ def similarity_cal_travel(df):
                         'destdist': df['destdist'],
                         'weight': df['hist_weight'] / CONFIG.WEIGHTSCALE,
                         'length': df['hist_miles'] / CONFIG.MILESCALE,
-                        'pallet': df['hist_pallet'] / CONFIG.WEIGHTSCALE,
+                        #'pallet': df['hist_pallet'] / CONFIG.WEIGHTSCALE,
                         }
     histload_df = pd.DataFrame(histload_feature).astype(np.float32)
     newload_feature = {'oridist': df['ref'],
                        'destdist': df['ref'],
                        'weight': df['new_weight'] / CONFIG.WEIGHTSCALE,
                        'length': df['new_miles'] / CONFIG.MILESCALE,
-                       'pallet': df['new_pallet'] / CONFIG.WEIGHTSCALE,
+                       #'pallet': df['new_pallet'] / CONFIG.WEIGHTSCALE,
                        }
     newload_df = pd.DataFrame(newload_feature).astype(np.float32)
     sim_row = ((histload_df.values / norm(histload_df.values, axis=1)[:, np.newaxis]) * (
@@ -161,8 +161,8 @@ def similarity_cal_travel(df):
     sim_df = {'LoadID': df['LoadID'],
               'histloadID': df['histloadID'],
               'similarity': sim_row,
-              'OriginCluster': df['new_OrigClusterID'],
-              'DestCluster': df['new_DestClusterID'],
+              'OriginCluster': df['new_Orig_Cluster'],
+              'DestCluster': df['new_Dest_Cluster'],
               'Transit': df['PU_Transit_Minute']
               }
     return pd.DataFrame(sim_df)
@@ -180,13 +180,13 @@ def similarity_cal_area(df):
     histload_feature = {'oridist': df['oridist'],
                         'weight': df['hist_weight'] / CONFIG.WEIGHTSCALE,
                         'length': df['hist_miles'] / CONFIG.MILESCALE,
-                        'pallet': df['hist_pallet'] / CONFIG.WEIGHTSCALE,
+                        #'pallet': df['hist_pallet'] / CONFIG.WEIGHTSCALE,
                         }
     histload_df = pd.DataFrame(histload_feature).astype(np.float32)
     newload_feature = {'oridist': df['ref'],
                        'weight': df['new_weight'] / CONFIG.WEIGHTSCALE,
                        'length': df['new_miles'] / CONFIG.MILESCALE,
-                       'pallet': df['new_pallet'] / CONFIG.WEIGHTSCALE,
+                       #'pallet': df['new_pallet'] / CONFIG.WEIGHTSCALE,
                        }
     newload_df = pd.DataFrame(newload_feature).astype(np.float32)
     sim_row = ((histload_df.values / norm(histload_df.values, axis=1)[:, np.newaxis]) * (
@@ -194,8 +194,8 @@ def similarity_cal_area(df):
     sim_df = {'LoadID': df['LoadID'],
               'histloadID': df['histloadID'],
               'similarity': sim_row,
-              'OriginCluster': df['new_OrigClusterID'],
-              'DestCluster': df['new_DestClusterID'],
+              'OriginCluster': df['new_Orig_Cluster'],
+              'DestCluster': df['new_Dest_Cluster'],
               'PU_Hour': df['PU_Hour'],
               'PU_Bucket': df['PU_Bucket'],
               'DO_Hour': df['DO_Hour'],
@@ -206,7 +206,8 @@ def similarity_cal_area(df):
     return pd.DataFrame(sim_df)
 
 
-def similarity_join_score(facility_hour_ml_df, model_flag):
+###Not Use
+    # def similarity_join_score(facility_hour_ml_df, model_flag):
     ###model_flag: 0 for both, 1 for pu -1 for do.
     facility_hour_ml_df = facility_hour_ml_df.sort_values(by=['LoadID', 'similarity'], ascending=False)
     if model_flag >= 0:

@@ -190,4 +190,4 @@ def test_function():
         print('Train Data Processing Done')
     except Exception as e:
         LOGGER.exception(e)
-test_function()
+#test_function()

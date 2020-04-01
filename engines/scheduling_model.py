@@ -36,12 +36,13 @@ def schedule_hour_area(df):
     hour_df = select_agg_df[df_rank <= 3]
     return hour_df
 
+
 def cal_dwell(df):
-    agg_df = df.groupby(['LoadID', 'PU_FacilityID', 'PU_Bucket'],
-                                                 as_index=False) \
-        .agg({'histloadID': 'size', 'similarity': 'median', 'PU_Hour': 'mean', 'Dwell': 'mean'}) \
+    df['weightDwell'] = df['similarity'].values * df['Dwell'].values
+    agg_df = df.groupby(['LoadID', 'PU_FacilityID', 'PU_Bucket'], as_index=False) \
+        .agg({'histloadID': 'size', 'similarity': 'median', 'similarity': 'sum', 'Dwell': 'mean', 'weightDwell': 'sum'}) \
         .rename(columns={'histloadID': 'count'})
-    select_agg_df = agg_df.loc[agg_df['count'] >= 10]
+    select_agg_df = agg_df.loc[agg_df['count'] >= 3]
     agg_df_sort = select_agg_df.sort_values(by=['LoadID', 'count', 'similarity'],
                                             ascending=False).reset_index(drop=True)
     df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
@@ -83,8 +84,8 @@ def scheduler_model(newloads_df, histloads_df, newloads_part1_ind):
     :return:
     '''
 
-    if newloads_part1_ind.any:
-        newloads_part1 = newloads_df[newloads_part1_ind]
+    if newloads_part1_ind.any():
+        newloads_part1 = newloads_df[newloads_part1_ind].reset_index(drop=True)
         df_dict = similarity_check(newloads_part1, histloads_df)
         facility_hour_all_df = df_dict['facility_hour_all_df']
         facility_dwell_df = df_dict['facility_dwell_df']
@@ -102,10 +103,10 @@ def scheduler_model(newloads_df, histloads_df, newloads_part1_ind):
         facility_hour_TypeD = facility_hour_TypeD[facility_hour_TypeD['LoadID'].isin(typeD_id)]
         if len(typeB_id) > 0:
             load_typeB = newloads_df[newloads_df['LoadID'].isin(typeB_id)]
-            facility_hour_TypeB = scheduler_rule (load_typeB, dwell_df, transit_df)
+            facility_hour_TypeB = scheduler_rule(load_typeB, dwell_df, transit_df)
 
-    if not newloads_part1_ind.any:
-        newload_part2 = newloads_df[~newloads_part1_ind]
+    if not newloads_part1_ind.any():
+        newload_part2 = newloads_df[~newloads_part1_ind].reset_index(drop=True)
         df_dict = similarity_check(newload_part2, histloads_df)
         facility_dwell_df = df_dict['facility_dwell_df']
         facility_travel_df = df_dict['facility_travel_df']
@@ -153,5 +154,5 @@ def scheduler_rule(newload_df, dwell_df, transit_df):  #Type B and C
     newload_df['do_scheduletime'] = pd.NaT
     newload_df.loc[do_newloaddf, 'do_scheduletime'] = newload_df.loc[do_newloaddf, 'pu_appt'] + newload_df['transit'] + newload_df['dwelltime']
     newload_df.loc[pu_newloaddf, 'pu_scheduletime'] = newload_df.loc[pu_newloaddf, 'do_appt'] - newload_df['transit'] - newload_df['dwelltime']
-
+    return newload_df
 
