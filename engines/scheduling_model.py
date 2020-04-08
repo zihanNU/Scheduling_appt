@@ -40,25 +40,30 @@ def schedule_hour_area(df):
 def cal_dwell(df):
     df['weightDwell'] = df['similarity'].values * df['Dwell'].values
     agg_df = df.groupby(['LoadID', 'PU_FacilityID', 'PU_Bucket'], as_index=False) \
-        .agg({'histloadID': 'size', 'similarity': 'median', 'similarity': 'sum', 'Dwell': 'mean', 'weightDwell': 'sum'}) \
-        .rename(columns={'histloadID': 'count'})
-    select_agg_df = agg_df.loc[agg_df['count'] >= 3]
-    agg_df_sort = select_agg_df.sort_values(by=['LoadID', 'count', 'similarity'],
-                                            ascending=False).reset_index(drop=True)
-    df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
-    dwell_df = select_agg_df[df_rank <= 3]
-    return dwell_df
+        .agg({'histloadID': 'size', 'similarity': ['median', 'sum'], 'PU_Hour': 'mean', 'Dwell': 'mean', 'weightDwell': 'sum'})
+
+    agg_df.columns = ['LoadID', 'PU_FacilityID', 'PU_Bucket', 'count', 'sim_median', 'sim_sum', 'PU_Hour', 'Dwell', 'weightDwell']
+    select_agg_df = agg_df.loc[(agg_df['count'] >= 3) & (agg_df['Dwell'].values <= 600) & (agg_df['Dwell'].values > 0)]
+    select_agg_df['Dwell_est'] = np.where(select_agg_df['sim_median'].values > 0.9, select_agg_df['Dwell'].values,
+                                          select_agg_df['weightDwell'].values / select_agg_df['sim_sum'].values)
+    # agg_df_sort = select_agg_df.sort_values(by=['LoadID', 'count', 'sim_median'], ascending=False).reset_index(drop=True)
+    # df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
+    # dwell_df = agg_df_sort[df_rank <= 3]
+    return select_agg_df
 
 
 def cal_transit(df):
+    df['weightTransit'] = df['similarity'].values * df['Transit'].values
     agg_df = df.groupby(['LoadID', 'OriginCluster', 'DestCluster'], as_index=False)\
-        .agg({'histloadID': 'size', 'similarity': 'median','Transit': 'mean'}) \
-        .rename(columns={'histloadID': 'count'})
-    select_agg_df = agg_df.loc[agg_df['count']>=10]
-    agg_df_sort = select_agg_df.sort_values(by=['LoadID', 'count', 'similarity'], ascending=False).reset_index(drop=True)
-    df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
-    transit_df = select_agg_df[df_rank <= 3]
-    return transit_df
+        .agg({'histloadID': 'size', 'similarity': ['median', 'sum'], 'Transit': 'mean', 'weightTransit': 'sum'})
+    agg_df.columns = ['LoadID', 'OriginCluster', 'DestCluster', 'count', 'sim_median', 'sim_sum', 'Transit', 'weightTransit']
+    select_agg_df = agg_df.loc[(agg_df['count'] >= 3) & (agg_df['Transit'] >= 0)]
+    select_agg_df['Travel_est'] = np.where(select_agg_df['sim_median'].values > 0.9, select_agg_df['Transit'].values,
+                                           select_agg_df['weightTransit'].values / select_agg_df['sim_sum'].values)
+    # agg_df_sort = select_agg_df.sort_values(by=['LoadID', 'count', 'sim_median'], ascending=False).reset_index(drop=True)
+    # df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
+    # transit_df = select_agg_df[df_rank <= 3]
+    return select_agg_df
 
 
 
@@ -142,17 +147,24 @@ def transit_time(miles, speed_base=45):
 def scheduler_rule(newload_df, dwell_df, transit_df):  #Type B and C
     speed_base = 45
     pu_ind = newload_df['PU_Appt'].isna()
-    pu_newloaddf = newload_df.loc[pu_ind]
-    do_newloaddf = newload_df.loc[~pu_ind]
+    pu_newloaddf = newload_df.loc[pu_ind].reset_index(drop=True)
+    do_newloaddf = newload_df.loc[~pu_ind].reset_index(drop=True)
+    hour_bucket = [0, 5, 8, 11, 14, 18, 21, 25]
+    do_newloaddf['PU_Hour'] = do_newloaddf['pu_appt'].dt.hour()
+    do_newloaddf['PU_Bucket'] = pd.cut(do_newloaddf['PU_Hour'], bins=hour_bucket).cat.codes
+
     newload_df['traveltime'] = newload_df['Miles'].values / speed_base
-    newload_df['resttime'] = np.int(newload_df['traveltime'].values/10) * 10 + np.int32(newload_df['traveltime'].values/4)
+    newload_df['resttime'] = np.int32(newload_df['traveltime'].values/10) * 10 + np.int32(newload_df['traveltime'].values/4)
     newload_df['transit'] = newload_df['traveltime'] + newload_df['resttime']
-    newload_df['dwelltime'] = dwell_df
-    newload_df['traveltime'] = transit_df
+    #newload_df['dwelltime'] = dwell_df[['LoadID', 'PU_Bucket', 'Dwell_est']]
+    #newload_df['traveltime'] = newload_df.merge(transit_df[['LoadID', 'Transit_est']], on='LoadID', how='left', copy=False)
 
     newload_df['pu_scheduletime'] = pd.NaT
     newload_df['do_scheduletime'] = pd.NaT
-    newload_df.loc[do_newloaddf, 'do_scheduletime'] = newload_df.loc[do_newloaddf, 'pu_appt'] + newload_df['transit'] + newload_df['dwelltime']
-    newload_df.loc[pu_newloaddf, 'pu_scheduletime'] = newload_df.loc[pu_newloaddf, 'do_appt'] - newload_df['transit'] - newload_df['dwelltime']
+    buffer = 1 #1 hour
+
+
+    newload_df.loc[do_newloaddf, 'do_scheduletime'] = newload_df.loc[do_newloaddf, 'pu_appt'] + newload_df['transit'] + newload_df['dwelltime'] + buffer
+    newload_df.loc[pu_newloaddf, 'pu_scheduletime'] = newload_df.loc[pu_newloaddf, 'do_appt'] - newload_df['transit'] - newload_df['dwelltime'] - buffer
     return newload_df
 

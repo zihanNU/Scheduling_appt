@@ -48,7 +48,7 @@ class Config(object):
     SIMILARITY_REF = float(node.xpath('//add[@key="similarityRef"]')[0].attrib['value'])
     WEIGHTSCALE = int(node.xpath('//add[@key="weightScale"]')[0].attrib['value'])
     MILESCALE = int(node.xpath('//add[@key="mileScale"]')[0].attrib['value'])
-
+    OD_DIST_SCALE = int(node.xpath('//add[@key="odDistScale"]')[0].attrib['value'])
 
 
     _live_update_start_time = node.xpath(

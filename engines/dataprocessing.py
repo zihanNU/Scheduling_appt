@@ -68,10 +68,10 @@ def process_liveloads(df, city_df, cluster_df):
     df['PU_time'] = pd.to_datetime(df['PU_time'], errors='coerce')
     df['DO_time'] = pd.to_datetime(df['DO_time'], errors='coerce')
     df['UpdateDate'] = pd.to_datetime(df['UpdateDate'], errors='coerce')
-    df = pd.merge(df, cluster_df, left_on=["PUCityID"], right_on=["CityID"], how='left')
+    df = pd.merge(df, cluster_df, left_on=["PUCityID"], right_on=["CityID"], how='left', copy=False)
     df.drop(columns=['CityID'], inplace=True)
     df = df.rename(columns={'ClusterID': 'OriginClusterID'})
-    df = pd.merge(df, cluster_df, left_on=["DOCityID"], right_on=["CityID"], how='left')
+    df = pd.merge(df, cluster_df, left_on=["DOCityID"], right_on=["CityID"], how='left', copy=False)
     df.drop(columns=['CityID'], inplace=True)
     df = df.rename(columns={'ClusterID': 'DestinationClusterID'})
 
@@ -80,26 +80,30 @@ def process_liveloads(df, city_df, cluster_df):
     mask_PU_ind = (df['PU_ScheduleType'].values == 1) & (df['PU_time'] <= df['LoadDate'])
     mask_DO_ind = (df['DO_ScheduleType'].values == 1) & (df['DO_time'] <= df['LoadDate'])
 
-    df = df[mask_PU_ind | mask_DO_ind]
+    schedule_df = df[mask_PU_ind | mask_DO_ind]
 
-    df['PU_appt_nonschedule'] = df['PU_LoadByDate'].dt.normalize() + \
-                                     pd.to_timedelta(df['PU_time'].dt.hour, unit='h') + \
-                                     pd.to_timedelta(df['PU_time'].dt.minute, unit='m')
+    schedule_df['PU_appt_nonschedule'] = schedule_df['PU_LoadByDate'].dt.normalize() + \
+                                     pd.to_timedelta(schedule_df['PU_time'].dt.hour, unit='h') + \
+                                     pd.to_timedelta(schedule_df['PU_time'].dt.minute, unit='m')
 
-    df['DO_appt_nonschedule'] = df['DO_LoadByDate'].dt.normalize() + \
-                                     pd.to_timedelta(df['DO_time'].dt.hour, unit='h') + \
-                                     pd.to_timedelta(df['DO_time'].dt.minute, unit='m')
+    schedule_df['DO_appt_nonschedule'] = schedule_df['DO_LoadByDate'].dt.normalize() + \
+                                     pd.to_timedelta(schedule_df['DO_time'].dt.hour, unit='h') + \
+                                     pd.to_timedelta(schedule_df['DO_time'].dt.minute, unit='m')
 
-    df['PU_DOW'] = df['LoadDate'].dt.dayofweek
-    df['DO_DOW'] = df['DO_LoadByDate'].dt.dayofweek
+    schedule_df['PU_DOW'] = df['LoadDate'].dt.dayofweek
+    schedule_df['DO_DOW'] = df['DO_LoadByDate'].dt.dayofweek
 
-    df['PU_Appt'] = np.nan
-    df.loc[df['PU_ScheduleType'].values == 1, 'PU_Appt'] = df['PU_ScheduleCloseTime']
-    df.loc[df['PU_ScheduleType'].values > 1, 'PU_Appt'] = df['PU_appt_nonschedule']
+    schedule_df['PU_Appt'] = pd.NaT
+    pu_ind = schedule_df['PU_ScheduleType'].values == 1
+    schedule_df.loc[pu_ind, 'PU_Appt'] = np.where(schedule_df.loc[pu_ind, 'PU_time'] >= schedule_df.loc[pu_ind, 'LoadDate'],
+                                                  pd.to_datetime(schedule_df.loc[pu_ind, 'PU_time']), pd.NaT)
+    schedule_df.loc[~pu_ind, 'PU_Appt'] = schedule_df.loc[~pu_ind, 'PU_appt_nonschedule']
 
-    df['DO_Appt'] = np.nan
-    df.loc[df['DO_ScheduleType'] == 1, 'DO_Appt'] = df['DO_ScheduleCloseTime']
-    df.loc[df['DO_ScheduleType'] > 1, 'DO_Appt'] = df['DO_appt_nonschedule']
+    schedule_df['DO_Appt'] = pd.NaT
+    do_ind = schedule_df['DO_ScheduleType'] == 1
+    schedule_df.loc[do_ind, 'DO_Appt'] = np.where(schedule_df.loc[do_ind, 'DO_time'] >= schedule_df.loc[do_ind, 'LoadDate'],
+                                                  pd.to_datetime(schedule_df.loc[do_ind, 'DO_time']), pd.NaT)
+    schedule_df.loc[do_ind, 'DO_Appt'] = schedule_df.loc[~do_ind, 'DO_appt_nonschedule']
 
     LOGGER.info('Preprocessing Live Data, Available loads...')
     # drop_features = ['LoadDate','PU_time','PU_ScheduleCloseTime','PU_appt_nonschedule',
@@ -107,7 +111,7 @@ def process_liveloads(df, city_df, cluster_df):
 
     # df.drop(drop_features, axis=1, inplace=True)
     LOGGER.info('Loading Live Data End, Available loads...')
-    newloads_df = assign_latlong_bycity(df, city_df)
+    newloads_df = assign_latlong_bycity(schedule_df, city_df)
     newloads_df = encode_load(newloads_df, 'EquipmentType')
 
     return newloads_df
@@ -134,8 +138,8 @@ def process_histloads(df, city_df, cluster_df):
     df['PU_Depart'] = pd.to_datetime(df['PU_Depart'], errors='coerce')
     df['DO_Arrive'] = pd.to_datetime(df['DO_Arrive'], errors='coerce')
     df['PU_Dwell_Minute'] = np.nan
-    PU_depart_ind1 = (df['PU_Depart'].values - df['PU_Arrive'].values).astype(np.float32)>=0
-    PU_depart_ind2 = (df['PU_Depart'].values - df['PU_Appt'].values).astype(np.float32)>=0
+    PU_depart_ind1 = (df['PU_Depart'].values - df['PU_Arrive'].values).astype(np.float32) >= 0
+    PU_depart_ind2 = (df['PU_Depart'].values - df['PU_Appt'].values).astype(np.float32) >= 0
     PU_appt_ind = (df['PU_Appt'].values - df['PU_Arrive'].values).astype(np.float32) >= 0
 
     df['PU_Dwell_Minute'].loc[PU_depart_ind2&PU_appt_ind] = (df['PU_Depart'].loc[PU_depart_ind2 & PU_appt_ind]
@@ -176,9 +180,9 @@ def test_function():
     try:
         test_data = pd.read_csv(os.path.join(CONFIG.MODEL_PATH, 'test_data.csv'))
         test_data_processed = process_liveloads(test_data, city_df, cluster_df)
-        test_data_processed.to_csv(os.path.join(CONFIG.MODEL_PATH, 'test_data_processed.csv'), index=False)
+        test_data_processed.to_csv(os.path.join(CONFIG.MODEL_PATH, 'test_data_processed_0408.csv'), index=False)
         LOGGER.info('Test Data Processing Done')
-        print('Test Data Processing Done')
+        #print('Test Data Processing Done')
     except Exception as e:
         LOGGER.exception(e)
 
