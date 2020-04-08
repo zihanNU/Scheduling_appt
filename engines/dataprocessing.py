@@ -4,7 +4,7 @@ import numpy as np
 import os
 import logging
 import config
-
+from engines.distance_function import approx_dist
 
 V_code = ['V', 'V,R', 'V,F', 'V,R,F', None]
 R_code = ['R']
@@ -57,6 +57,14 @@ def process_liveloads(df, city_df, cluster_df):
     LOGGER.info('Loading Live Data, Available loads...')
     #newloads_df = newloads_df[(newloads_df['Division'].isin([1, 2, 3, 4]))& (newloads_df['ShipmentType'].isin([0, 1, 2, 5]))]
     #newloads_df = newloads_df[newloads_df['TotalRate'] > 150]
+    mask_ind = np.flatnonzero(df['Miles'].values < 0 | df['Miles'].isna().values)
+    if mask_ind.size > 0:
+        df['Miles'].values[mask_ind] = approx_dist(
+            origin_latitude=df['OriginLatitude'].values[mask_ind],
+            origin_longitude=df['OriginLongitude'].values[mask_ind],
+            dest_latitude=df['DestinationLatitude'].values[mask_ind],
+            dest_longitude=df['DestinationLongitude'].values[mask_ind]
+        )
     haul_bucket = [0, 200, 450, 600, 800, 1000, 1200, 1500, 2000, 2500, max(5000, df['Miles'].max())]
     df['haul'] = pd.cut(df['Miles'], bins=haul_bucket).cat.codes
     df['haul'] = df['haul']*10
@@ -93,23 +101,24 @@ def process_liveloads(df, city_df, cluster_df):
     schedule_df['PU_DOW'] = df['LoadDate'].dt.dayofweek
     schedule_df['DO_DOW'] = df['DO_LoadByDate'].dt.dayofweek
 
-    schedule_df['PU_Appt'] = pd.NaT
+    schedule_df['PU_Appt'] = schedule_df['PU_ScheduleCloseTime']
     pu_ind = schedule_df['PU_ScheduleType'].values == 1
-    schedule_df.loc[pu_ind, 'PU_Appt'] = np.where(schedule_df.loc[pu_ind, 'PU_time'] >= schedule_df.loc[pu_ind, 'LoadDate'],
-                                                  pd.to_datetime(schedule_df.loc[pu_ind, 'PU_time']), pd.NaT)
+    pu_invalid = schedule_df['PU_ScheduleCloseTime'].values < schedule_df['LoadDate'].values
+    schedule_df.loc[pu_ind & pu_invalid, 'PU_Appt'] = pd.NaT
     schedule_df.loc[~pu_ind, 'PU_Appt'] = schedule_df.loc[~pu_ind, 'PU_appt_nonschedule']
 
-    schedule_df['DO_Appt'] = pd.NaT
+    schedule_df['DO_Appt'] = schedule_df['DO_ScheduleCloseTime']
     do_ind = schedule_df['DO_ScheduleType'] == 1
-    schedule_df.loc[do_ind, 'DO_Appt'] = np.where(schedule_df.loc[do_ind, 'DO_time'] >= schedule_df.loc[do_ind, 'LoadDate'],
-                                                  pd.to_datetime(schedule_df.loc[do_ind, 'DO_time']), pd.NaT)
+    do_invalid = schedule_df['DO_ScheduleCloseTime'].values < schedule_df['LoadDate'].values
+    schedule_df.loc[do_ind & do_invalid, 'DO_Appt'] = pd.NaT
     schedule_df.loc[do_ind, 'DO_Appt'] = schedule_df.loc[~do_ind, 'DO_appt_nonschedule']
 
     LOGGER.info('Preprocessing Live Data, Available loads...')
-    # drop_features = ['LoadDate','PU_time','PU_ScheduleCloseTime','PU_appt_nonschedule',
+    drop_features = ['index_x', 'index_y', 'StateID_x', 'StateID_y', 'offset_x', 'offset_y']
+    # ['LoadDate','PU_time','PU_ScheduleCloseTime','PU_appt_nonschedule',
     #                'DO_time','DO_ScheduleCloseTime','DO_appt_nonschedule'  ]
 
-    # df.drop(drop_features, axis=1, inplace=True)
+    schedule_df.drop(drop_features, axis=1, inplace=True)
     LOGGER.info('Loading Live Data End, Available loads...')
     newloads_df = assign_latlong_bycity(schedule_df, city_df)
     newloads_df = encode_load(newloads_df, 'EquipmentType')
