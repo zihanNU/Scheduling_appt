@@ -53,6 +53,7 @@ def build_pickle_facility_df():
                 closehour = day + 'Close'
                 facility_hour[openhour] = pd.to_datetime(facility_hour[openhour].apply(lambda x: x[0:5]))
                 facility_hour[closehour] = pd.to_datetime(facility_hour[closehour].apply(lambda x: x[0:5]))
+            facility_hour.set_index('FacilityID', drop=True, inplace=True)
             facility_hour.to_pickle('facility_hour.pkl', index=False)
         except Exception as ex:
             LOGGER.exception("Exception while running get_cluster_initial(): (attempt=={}): {}".format(
