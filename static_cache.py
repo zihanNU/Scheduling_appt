@@ -3,6 +3,7 @@ import time
 import logging
 
 import pandas as pd
+import numpy as np
 
 
 from engines.query import QueryEngine
@@ -38,6 +39,27 @@ def daily_update():
 
     LOGGER.info("Completed daily_update in {:.2f}s".format(time.time() - time_start))
     return
+
+
+def build_pickle_facility_df():
+    facility_hour = None
+    backoff_index = 0
+    while facility_hour is None:
+        try:
+            facility_hour = QUERY.get_facility_initial()
+            days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            for day in days:
+                openhour = day + 'Open'
+                closehour = day + 'Close'
+                facility_hour[openhour] = pd.to_datetime(facility_hour[openhour].apply(lambda x: x[0:5]))
+                facility_hour[closehour] = pd.to_datetime(facility_hour[closehour].apply(lambda x: x[0:5]))
+            facility_hour.to_pickle('facility_hour.pkl', index=False)
+        except Exception as ex:
+            LOGGER.exception("Exception while running get_cluster_initial(): (attempt=={}): {}".format(
+                backoff_index, repr(ex)))
+            backoff_index += 1  # begin at BACKOFF_FACTOR seconds
+            time.sleep(min(BACKOFF_FACTOR**backoff_index, MAX_BACKOFF))
+
 
 def build_pickle_offset_info():
     try:

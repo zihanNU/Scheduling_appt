@@ -50,6 +50,7 @@ class QueryEngine():
             cn.execute(sql_command)
             cn.commit()
 
+
     def daily_update_HistLoad(self):
         self._sql_update("DB research science", "EXEC [dbo].[uspScheduling_GetHistLoad]")
         LOGGER.info('Update historical load in Database Completed')
