@@ -12,11 +12,11 @@ LOGGER = logging.getLogger(__name__)
 
 
 def schedule_hour_stop(df):
-    agg_df = df.groupby(['LoadID', 'PU_FacilityID', 'DO_FacilityID', 'PU_Bucket', 'DO_Bucket'], as_index=False) \
+    agg_df = df.groupby(['LoadID', 'PU_Facility', 'DO_Facility', 'PU_Bucket', 'DO_Bucket'], as_index=False) \
         .agg({'histloadID': 'size', 'similarity': 'median', 'PU_Hour': 'mean', 'DO_Hour': 'mean', 'Transit': 'median',
               'Dwell': 'median'})\
         .rename(columns={'histloadID': 'count'})
-    agg_df_sort = agg_df.sort_values(by=['PU_FacilityID', 'DO_FacilityID', 'LoadID', 'count', 'similarity', 'Dwell'],
+    agg_df_sort = agg_df.sort_values(by=['PU_Facility', 'DO_Facility', 'LoadID', 'count', 'similarity', 'Dwell'],
                                      ascending=[True, True, True, False, False, True]).reset_index(drop=True)
     df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
     hour_df = agg_df_sort.loc[df_rank <= 3]
@@ -37,10 +37,10 @@ def schedule_hour_area(df):
 
 def cal_dwell(df):
     df['weightDwell'] = df['similarity'].values * df['Dwell'].values
-    agg_df = df.groupby(['LoadID', 'PU_FacilityID', 'PU_Bucket'], as_index=False) \
+    agg_df = df.groupby(['LoadID', 'PU_Facility', 'PU_Bucket'], as_index=False) \
         .agg({'histloadID': 'size', 'similarity': ['median', 'sum'], 'PU_Hour': 'mean', 'Dwell': 'mean', 'weightDwell': 'sum'})
 
-    agg_df.columns = ['LoadID', 'PU_FacilityID', 'PU_Bucket', 'count', 'sim_median', 'sim_sum', 'PU_Hour', 'Dwell', 'weightDwell']
+    agg_df.columns = ['LoadID', 'PU_Facility', 'PU_Bucket', 'count', 'sim_median', 'sim_sum', 'PU_Hour', 'Dwell', 'weightDwell']
     select_agg_df = agg_df.loc[(agg_df['count'] >= 3) & (agg_df['Dwell'].values <= 600) & (agg_df['Dwell'].values > 0)]
     select_agg_df['Dwell_est'] = np.where(select_agg_df['sim_median'].values > 0.9, select_agg_df['Dwell'].values,
                                           select_agg_df['weightDwell'].values / select_agg_df['sim_sum'].values)
@@ -67,30 +67,30 @@ def cal_transit(df):
 def scheduler_ml_AD(newloads_df, histloads_df):
     df_dict = similarity_check(newloads_df, histloads_df)
     facility_hour_all_df = df_dict['facility_hour_all_df']
-    facility_dwell_df = df_dict['facility_dwell_df']
-    facility_travel_df = df_dict['facility_travel_df']
+    # facility_dwell_df = df_dict['facility_dwell_df']
+    # facility_travel_df = df_dict['facility_travel_df']
     facility_area_df = df_dict['facility_area_df']
     facility_hour_TypeA = schedule_hour_stop(facility_hour_all_df)
     facility_hour_TypeD = schedule_hour_area(facility_area_df)
-    dwell_df = cal_dwell(facility_dwell_df)
-    transit_df = cal_transit(facility_travel_df)
+    # dwell_df = cal_dwell(facility_dwell_df)
+    # transit_df = cal_transit(facility_travel_df)
     loadid_all = newloads_df['LoadID'].tolist()
     loadid_partTypeA = facility_hour_TypeA['LoadID'].tolist()
     loadid_partTypeD = facility_hour_TypeD['LoadID'].tolist()
     typeD_id = list(set(loadid_partTypeD) - set(loadid_partTypeA))
     typeE_id = list(set(loadid_all) - set(loadid_partTypeD) - set(loadid_partTypeA))
-    rename_dict = {'PU_Facility': 'PU_FacilityID', 'DO_Facility': 'DO_FacilityID'}
     facility_hour_TypeD = facility_hour_TypeD[facility_hour_TypeD['LoadID'].isin(typeD_id)]
-    facility_hour_TypeD = facility_hour_TypeD.merge(newloads_df[['LoadID', 'PU_Facility', 'DO_Facility']],
-                                                    on=['LoadID'], how='left', copy=False).rename(columns=rename_dict)
-    features = ['LoadID', 'PU_FacilityID', 'DO_FacilityID', 'PU_Bucket', 'DO_Bucket', 'count', 'similarity', 'PU_Hour',
-                'DO_Hour',
-                'Transit', 'Dwell']
-    newloads_ml = pd.concat(facility_hour_TypeA[features], facility_hour_TypeD[features], axis=0, ignore_index=True)
+    facility_hour_TypeA = facility_hour_TypeA.merge(newloads_df[['LoadID', 'LoadDate']],
+                                                    on=['LoadID'], how='left', copy=False)
+    facility_hour_TypeD = facility_hour_TypeD.merge(newloads_df[['LoadID', 'LoadDate', 'PU_Facility', 'DO_Facility']],
+                                                    on=['LoadID'], how='left', copy=False)
+    features = ['LoadID', 'LoadDate', 'PU_Facility', 'DO_Facility', 'PU_Bucket', 'DO_Bucket', 'count', 'similarity', 'PU_Hour',
+                'DO_Hour', 'Transit', 'Dwell']
+    newloads_ml = pd.concat([facility_hour_TypeA[features], facility_hour_TypeD[features]], axis=0, ignore_index=True)
     if len(typeE_id) > 0:
-        load_typeE = newloads_df[newloads_df['LoadID'].isin(typeE_id)]
-        facility_hour_TypeB = scheduler_newFac(load_typeE, dwell_df, transit_df)
-    return newloads_ml, facility_hour_TypeB
+        load_typeE = newloads_df[newloads_df['LoadID'].isin(typeE_id)].reset_index(drop=True)
+        facility_hour_TypeE = scheduler_newFac(load_typeE)
+    return newloads_ml, facility_hour_TypeE
 
 
 def scheduler_model(newloads_df, histloads_df):
@@ -118,9 +118,13 @@ def scheduler_model(newloads_df, histloads_df):
     newloads_part2_ind = (newloads_df['PU_Appt'].isna()) & (newloads_df['DO_ScheduleType'].values > 1)
     newloads_part3_ind = (newloads_df['PU_ScheduleType'].values > 1) & (newloads_df['DO_Appt'].isna())
     newloads_part4_ind = ~(newloads_part1_ind | newloads_part2_ind | newloads_part3_ind)
+    features1 = ['LoadID', 'LoadDate', 'PU_Facility', 'DO_Facility', 'PU_Bucket', 'DO_Bucket', 'count', 'similarity', 'PU_Hour',
+                 'DO_Hour', 'Transit', 'Dwell']  # for AD type
+    features2 = ['LoadID', 'LoadDate', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt', 'pu_scheduletime',
+                 'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime'] # for BCE type
     #note the transit time and dwell time have been set into hours
     # only one side need appt, and the other side is fixed
-    if newloads_part4_ind.all():
+    if newloads_part4_ind.any():
         newload_part4 = newloads_df[newloads_part4_ind].reset_index(drop=True)
         df_dict = similarity_check(newload_part4, histloads_df)
         facility_dwell_df = df_dict['facility_dwell_df']
@@ -128,25 +132,41 @@ def scheduler_model(newloads_df, histloads_df):
         dwell_df = cal_dwell(facility_dwell_df)
         transit_df = cal_transit(facility_travel_df)
         facility_hour_TypeC = scheduler_rule(newload_part4, dwell_df, transit_df)
+    else:
+        facility_hour_TypeC = pd.DataFrame(columns=features2)
 
     # no side is fixed
     if newloads_part1_ind.any():
         # both need appt
         newloads_part1 = newloads_df[newloads_part1_ind].reset_index(drop=True)
-        newload_scheduler_part1, newload_typeB_part1 = scheduler_ml_AD(newloads_part1, histloads_df)
+        newload_scheduler_part1, newload_typeE_part1 = scheduler_ml_AD(newloads_part1, histloads_df)
+    else:
+        newload_scheduler_part1 = pd.DataFrame(columns=features1)
+        newload_typeE_part1 = pd.DataFrame(columns=features2)
 
     if newloads_part2_ind.any():
         #PU need appt, but DO is free for appt. can use type A or D
         newloads_part2 = newloads_df[newloads_part2_ind].reset_index(drop=True)
-        newload_scheduler_part2, newload_typeB_part2 = scheduler_ml_AD(newloads_part2, histloads_df)
+        newload_scheduler_part2, newload_typeE_part2 = scheduler_ml_AD(newloads_part2, histloads_df)
+    else:
+        newload_scheduler_part2 = pd.DataFrame(columns=features1)
+        newload_typeE_part2 = pd.DataFrame(columns=features2)
 
     if newloads_part3_ind.any():
         #DO need appt, but PU is free for appt. can use type A
         newloads_part3 = newloads_df[newloads_part3_ind].reset_index(drop=True)
-        newload_scheduler_part3, newload_typeB_part3 = scheduler_ml_AD(newloads_part3, histloads_df)
+        newload_scheduler_part3, newload_typeE_part3 = scheduler_ml_AD(newloads_part3, histloads_df)
+    else:
+        newload_scheduler_part3 = pd.DataFrame(columns=features1)
+        newload_typeE_part3 = pd.DataFrame(columns=features2)
 
+    newload_scheduler_typeAD = pd.concat([newload_scheduler_part1, newload_scheduler_part2], axis=0, ignore_index=True)
+    newload_scheduler_typeAD = pd.concat([newload_scheduler_typeAD, newload_scheduler_part3], axis=0, ignore_index=True)
+    newload_scheduler_typeBCE = pd.concat([newload_typeE_part1, newload_typeE_part2], axis=0, ignore_index=True)
+    newload_scheduler_typeBCE = pd.concat([newload_scheduler_typeBCE, newload_typeE_part3], axis=0, ignore_index=True)
+    newload_scheduler_typeBCE = pd.concat([newload_scheduler_typeBCE, facility_hour_TypeC], axis=0, ignore_index=True)
 
-
+    return newload_scheduler_typeAD, newload_scheduler_typeBCE
 
 def transit_time(miles, speed_base=45):
     traveltime = miles/speed_base
@@ -169,7 +189,8 @@ def transit_time(miles, speed_base=45):
     # elif traveltime <= 80:
     #     resttime = 10*7 + np.int32(traveltime / 4)
 
-def scheduler_newFac(newload_df, facility_hour_df):  #Type E
+
+def scheduler_newFac(newload_df):  #Type E
     speed_base = 45
     newload_df['traveltime'] = newload_df['Miles'].values / speed_base
     newload_df['resttime'] = np.int32(newload_df['traveltime'].values / 10) * 10 + np.int32(
@@ -188,24 +209,21 @@ def scheduler_newFac(newload_df, facility_hour_df):  #Type E
                                                      - newload_df['PUOffset'].values + newload_df['DOOffset'].values
                                                      + buffer), unit='h')
     features = ['LoadID', 'LoadDate', 'PU_ScheduleType', 'PU_Appt', 'pu_scheduletime',
-                'DO_ScheduleType', 'DO_Appt', 'do_scheduletime','PU_DOW']
+                'DO_ScheduleType', 'DO_Appt', 'do_scheduletime']
 
-    newloads_result_df = feasibility_check(newload_df[features], facility_hour_df)
-
-    return newloads_result_df.reset_index(drop=True)
+    return newload_df[features].reset_index(drop=True)
 
 
-def scheduler_rule(newload_df, dwell_df, transit_df, facility_hour_df):  #Type B and C
+def scheduler_rule(newload_df, dwell_df, transit_df):  #Type B and C
     speed_base = 45
     newload_df['traveltime'] = newload_df['Miles'].values / speed_base
     newload_df['resttime'] = np.int32(newload_df['traveltime'].values / 10) * 10 + np.int32(
-        newload_df['traveltime'].values / 4)
+                                newload_df['traveltime'].values / 4)
     newload_df['transit'] = newload_df['traveltime'] + newload_df['resttime']
     newload_df['dwelltime'] = 2
     pu_ind = newload_df['PU_Appt'].isna()
 
     hour_bucket = [0, 5, 8, 11, 14, 18, 21, 25]
-
     pu_newloaddf = newload_df.loc[pu_ind].reset_index(drop=True)
     do_newloaddf = newload_df.loc[~pu_ind].reset_index(drop=True)
     do_newloaddf['PU_Hour'] = pd.to_datetime(do_newloaddf['PU_Appt']).dt.hour
@@ -217,6 +235,8 @@ def scheduler_rule(newload_df, dwell_df, transit_df, facility_hour_df):  #Type B
     do_newloaddf['dwelltime'] = do_newloaddf['Dwell_est']
 
     pu_newloaddf['pu_scheduletime'] = pd.NaT
+    do_newloaddf['pu_scheduletime'] = pd.to_datetime(do_newloaddf['PU_Appt'])
+    pu_newloaddf['do_scheduletime'] = pd.to_datetime(pu_newloaddf['DO_Appt'])
     do_newloaddf['do_scheduletime'] = pd.NaT
     buffer = 1 #1 hour
 
@@ -228,18 +248,11 @@ def scheduler_rule(newload_df, dwell_df, transit_df, facility_hour_df):  #Type B
                                       pd.to_timedelta((pu_newloaddf['transit'].values + pu_newloaddf['dwelltime'].values
                                                       - pu_newloaddf['PUOffset'].values + pu_newloaddf['DOOffset'].values
                                                       + buffer), unit='h')
-    features = ['LoadID', 'LoadDate','PU_Facility', 'PU_ScheduleType', 'PU_Appt', 'pu_scheduletime',
-                'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime', 'PU_DOW']
+    features = ['LoadID', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt', 'pu_scheduletime',
+                'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime']
 
-    result_df = pd.concat(pu_newloaddf[features], do_newloaddf[features], axis=0, ignore_index=True)
-    newloads_result_df = feasibility_check(result_df, facility_hour_df)
-    return newloads_result_df
+    result_df = pd.concat([pu_newloaddf[features], do_newloaddf[features]], axis=0, ignore_index=True)
+    return result_df
 
-def feasibility_check(load_df, facility_df):
-    Weekday_Mapper = {0: 'Monday', 1: 'Tuesday', 2: 'Wednesday', 3: 'Thursday', 4: 'Friday', 5: 'Saturday', 6: 'Sunday'}
-    load_df['DO_DOW'] = -1
-    do_ind = load_df['DO_ScheduleType'].values == 1
-    pu_ind = load_df['PU_ScheduleType'].values == 1
-    load_df.loc[do_ind, 'DO_DOW'] = load_df['do_scheduletime'].dt.dayofweek
 
 

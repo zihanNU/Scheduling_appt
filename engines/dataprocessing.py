@@ -177,8 +177,8 @@ def process_histloads(df, city_df, cluster_df):
 
 def test_function():
     try:
-        city_df = pd.read_pickle(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl')).reset_index()
-        cluster_df = pd.read_pickle(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_cluster_info.pkl')).reset_index()
+        city_df = pd.read_pickle(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl')).reset_index(drop=True)
+        cluster_df = pd.read_pickle(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_cluster_info.pkl')).reset_index(drop=True)
     except Exception as e:
         ## Note here we need to identify columns and dtypes
         city_df = pd.DataFrame()

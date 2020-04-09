@@ -32,6 +32,8 @@ def init_read_liveload():
 def init_read_facility():
     try:
         facility_hour = pd.read_csv(os.path.join(CONFIG.MODEL_PATH, 'facility_hour_0409.csv'))
+        facility_hour.sort_values(by='FacilityID', inplace=True)
+        facility_hour.set_index('FacilityID', drop=True, inplace=True)
     except Exception as e:
         facility_hour = pd.DataFrame()
         LOGGER.error("Cannot Find facility_hour File")

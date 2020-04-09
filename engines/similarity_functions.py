@@ -35,18 +35,18 @@ def similarity_check(newloads_df, histloads_df):
                                'hist_Orig_Cluster', 'hist_Dest_Cluster',
                                'hist_originLat', 'hist_originLon', 'hist_destinationLat', 'hist_destinationLon',
                                ]
-    joinAll_df = newhistjoin_df1.merge(newhistjoin_df2, left_on=["new_PF", "new_DF"],
-                                       right_on=["PU_Facility", "DO_Facility"], how='inner')
+    joinAll_df = newhistjoin_df1.merge(newhistjoin_df2, left_on=['new_PF', 'new_DF'],
+                                       right_on=['PU_Facility', 'DO_Facility'], how='inner')
     joinAll_df.drop(['new_PF', 'new_DF', 'new_Orig_Cluster', 'new_Dest_Cluster',  'hist_Orig_Cluster', 'hist_Dest_Cluster',
                      'new_originLat', 'new_originLon', 'new_destinationLat', 'new_destinationLon',
                      'hist_originLat', 'hist_originLon', 'hist_destinationLat', 'hist_destinationLon',
                      ], axis=1, inplace=True)
 
-    joinOrig_df = newhistjoin_df1.merge(newhistjoin_df2, left_on=["new_PF"], right_on=["PU_Facility"], how='inner')
+    joinOrig_df = newhistjoin_df1.merge(newhistjoin_df2, left_on=['new_PF'], right_on=['PU_Facility'], how='inner')
     joinOrig_df.drop(['new_PF', 'new_Orig_Cluster', 'new_Dest_Cluster',  'hist_Orig_Cluster', 'hist_Dest_Cluster'],
                      axis=1, inplace=True)
 
-    joinDest_df = newhistjoin_df1.merge(newhistjoin_df2, left_on=["new_DF"], right_on=["DO_Facility"], how='inner')
+    joinDest_df = newhistjoin_df1.merge(newhistjoin_df2, left_on=['new_DF'], right_on=['DO_Facility'], how='inner')
     joinDest_df.drop(['new_DF', 'new_Orig_Cluster', 'new_Dest_Cluster', 'hist_Orig_Cluster', 'hist_Dest_Cluster'],
                      axis=1, inplace=True)
 
@@ -90,10 +90,10 @@ def similarity_cal_all(df):
     sim_df = {'LoadID': df['LoadID'],
               'histloadID': df['histloadID'],
               'similarity': sim_row,
-              'PU_FacilityID': df['PU_Facility'],
+              'PU_Facility': df['PU_Facility'],
               'PU_Hour': df['PU_Hour'],
               'PU_Bucket': df['PU_Bucket'],
-              'DO_FacilityID': df['DO_Facility'],
+              'DO_Facility': df['DO_Facility'],
               'DO_Hour': df['DO_Hour'],
               'DO_Bucket': df['DO_Bucket'],
               'Transit': df['PU_Transit_Minute']/60.0,
@@ -118,7 +118,7 @@ def similarity_cal_dwell(df):
     sim_df = {'LoadID': df['LoadID'],
               'histloadID': df['histloadID'],
               'similarity': sim_row,
-              'PU_FacilityID': df['PU_Facility'],
+              'PU_Facility': df['PU_Facility'],
               'PU_Hour': df['PU_Hour'],
               'PU_Bucket': df['PU_Bucket'],
               'Dwell': df['PU_Dwell_Minute']/60.0
