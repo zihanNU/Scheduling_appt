@@ -96,8 +96,8 @@ def similarity_cal_all(df):
               'DO_FacilityID': df['DO_Facility'],
               'DO_Hour': df['DO_Hour'],
               'DO_Bucket': df['DO_Bucket'],
-              'Transit': df['PU_Transit_Minute'],
-              'Dwell': df['PU_Dwell_Minute']
+              'Transit': df['PU_Transit_Minute']/60.0,
+              'Dwell': df['PU_Dwell_Minute']/60.0
               }
     return pd.DataFrame(sim_df)
 
@@ -121,7 +121,7 @@ def similarity_cal_dwell(df):
               'PU_FacilityID': df['PU_Facility'],
               'PU_Hour': df['PU_Hour'],
               'PU_Bucket': df['PU_Bucket'],
-              'Dwell': df['PU_Dwell_Minute']
+              'Dwell': df['PU_Dwell_Minute']/60.0
               }
     return pd.DataFrame(sim_df)
 
@@ -163,7 +163,7 @@ def similarity_cal_travel(df):
               'similarity': sim_row,
               'OriginCluster': df['new_Orig_Cluster'],
               'DestCluster': df['new_Dest_Cluster'],
-              'Transit': df['PU_Transit_Minute']
+              'Transit': df['PU_Transit_Minute']/60.0
               }
     return pd.DataFrame(sim_df)
 
@@ -200,8 +200,8 @@ def similarity_cal_area(df):
               'PU_Bucket': df['PU_Bucket'],
               'DO_Hour': df['DO_Hour'],
               'DO_Bucket': df['DO_Bucket'],
-              'Dwell': df['PU_Dwell_Minute'],
-              'Transit': df['PU_Transit_Minute']
+              'Dwell': df['PU_Dwell_Minute']/60.0,
+              'Transit': df['PU_Transit_Minute']/60.0
               }
     return pd.DataFrame(sim_df)
 

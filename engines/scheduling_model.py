@@ -13,26 +13,25 @@ LOGGER = logging.getLogger(__name__)
 
 def schedule_hour_stop(df):
     agg_df = df.groupby(['LoadID', 'PU_FacilityID', 'DO_FacilityID', 'PU_Bucket', 'DO_Bucket'], as_index=False) \
-        .agg({'histloadID': 'size', 'similarity': 'median', 'PU_Hour': 'mean', 'DO_Hour': 'mean', 'Transit': 'mean',
-              'Dwell': 'mean'}) \
+        .agg({'histloadID': 'size', 'similarity': 'median', 'PU_Hour': 'mean', 'DO_Hour': 'mean', 'Transit': 'median',
+              'Dwell': 'median'})\
         .rename(columns={'histloadID': 'count'})
-    select_agg_df = agg_df.loc[agg_df['count']>=10]
-    agg_df_sort = select_agg_df.sort_values(by=['LoadID', 'count', 'similarity'], ascending=False).reset_index(drop=True)
+    agg_df_sort = agg_df.sort_values(by=['PU_FacilityID', 'DO_FacilityID', 'LoadID', 'count', 'similarity', 'Dwell'],
+                                     ascending=[True, True, True, False, False, True]).reset_index(drop=True)
     df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
-    hour_df = select_agg_df[df_rank <= 3]
+    hour_df = agg_df_sort[df_rank <= 3]
     return hour_df
 
 
 def schedule_hour_area(df):
     agg_df = df.groupby(['LoadID', 'OriginCluster', 'DestCluster', 'PU_Bucket', 'DO_Bucket'], as_index=False) \
-        .agg({'histloadID': 'size', 'similarity': 'median', 'PU_Hour': 'mean', 'DO_Hour': 'mean', 'Transit': 'mean',
-              'Dwell': 'mean'}) \
+        .agg({'histloadID': 'size', 'similarity': 'median', 'PU_Hour': 'mean', 'DO_Hour': 'mean', 'Transit': 'median',
+              'Dwell': 'median'}) \
         .rename(columns={'histloadID': 'count'})
-    select_agg_df = agg_df.loc[agg_df['count'] >= 10]
-    agg_df_sort = select_agg_df.sort_values(by=['LoadID', 'count', 'similarity'],
-                                            ascending=False).reset_index(drop=True)
+    agg_df_sort = agg_df.sort_values(by=['PU_FacilityID', 'DO_FacilityID', 'LoadID', 'count', 'similarity', 'Dwell'],
+                                     ascending=[True, True, True, False, False, True]).reset_index(drop=True)
     df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
-    hour_df = select_agg_df[df_rank <= 3]
+    hour_df = agg_df_sort[df_rank <= 3]
     return hour_df
 
 
@@ -91,7 +90,7 @@ def scheduler_model(newloads_df, histloads_df):
     newloads_part2_ind = (newloads_df['PU_Appt'].isna()) & (newloads_df['DO_ScheduleType'].values > 1)
     newloads_part3_ind = (newloads_df['PU_ScheduleType'].values > 1) & (newloads_df['DO_Appt'].isna())
     newloads_part4_ind = ~(newloads_part1_ind | newloads_part2_ind | newloads_part3_ind)
-
+    #note the transit time and dwell time have been set into hours
     # only one side need appt, and the other side is fixed
     if newloads_part4_ind.all():
         newload_part4 = newloads_df[newloads_part4_ind].reset_index(drop=True)
