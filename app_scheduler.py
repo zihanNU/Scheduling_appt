@@ -18,6 +18,8 @@ from engines.initialization import init_read_histload, init_read_facility, init_
 from engines.query import QueryEngine
 from engines.scheduling_model import scheduler_model
 from engines.dataprocessing import process_liveloads
+from engines.spread_function import scheduler_spread
+from engines.feasibility_function import feasibility_check
 
 import config
 import logging
@@ -30,11 +32,6 @@ QUERY = QueryEngine()
 CONFIG = config.Config()
 
 LOGGER = logging.getLogger(__name__)
-
-
-
-def scheduler_feasibility(newloads_df, facility_hour_df):
-    return None
 
 if __name__ == '__main__':
     LOGGER.info("*** System Initialization ***")
@@ -49,5 +46,6 @@ if __name__ == '__main__':
 
     LOGGER.info("*** System Initialization Done ***")
     #newloads_part1_id = newloads_df.loc[newloads_part1_ind, 'LoadID'].tolist()
-    newload_results_df = scheduler_model(newloads_df, histloads_df)
+    results_df1, results_df2 = scheduler_model(newloads_df, histloads_df)
+    results_df1 = scheduler_spread(results_df1)
 

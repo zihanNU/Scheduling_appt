@@ -19,7 +19,7 @@ def schedule_hour_stop(df):
     agg_df_sort = agg_df.sort_values(by=['PU_Facility', 'DO_Facility', 'LoadID', 'count', 'similarity', 'Dwell'],
                                      ascending=[True, True, True, False, False, True]).reset_index(drop=True)
     df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
-    hour_df = agg_df_sort.loc[df_rank <= 3]
+    hour_df = agg_df_sort.loc[df_rank ==0]  # select best time window
     return hour_df
 
 
@@ -80,12 +80,13 @@ def scheduler_ml_AD(newloads_df, histloads_df):
     typeD_id = list(set(loadid_partTypeD) - set(loadid_partTypeA))
     typeE_id = list(set(loadid_all) - set(loadid_partTypeD) - set(loadid_partTypeA))
     facility_hour_TypeD = facility_hour_TypeD[facility_hour_TypeD['LoadID'].isin(typeD_id)]
-    facility_hour_TypeA = facility_hour_TypeA.merge(newloads_df[['LoadID', 'LoadDate']],
+    facility_hour_TypeA = facility_hour_TypeA.merge(newloads_df[['LoadID', 'Miles', 'LoadDate', 'PU_ScheduleType', 'DO_ScheduleType']],
                                                     on=['LoadID'], how='left', copy=False)
-    facility_hour_TypeD = facility_hour_TypeD.merge(newloads_df[['LoadID', 'LoadDate', 'PU_Facility', 'DO_Facility']],
+    facility_hour_TypeD = facility_hour_TypeD.merge(newloads_df[['LoadID', 'Miles', 'LoadDate', 'PU_Facility', 'DO_Facility',
+                                                                'PU_ScheduleType', 'DO_ScheduleType']],
                                                     on=['LoadID'], how='left', copy=False)
-    features = ['LoadID', 'LoadDate', 'PU_Facility', 'DO_Facility', 'PU_Bucket', 'DO_Bucket', 'count', 'similarity', 'PU_Hour',
-                'DO_Hour', 'Transit', 'Dwell']
+    features = ['LoadID', 'Miles', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'DO_Facility', 'DO_ScheduleType',
+                'PU_Bucket', 'DO_Bucket', 'count', 'similarity', 'PU_Hour', 'DO_Hour', 'Transit', 'Dwell']
     newloads_ml = pd.concat([facility_hour_TypeA[features], facility_hour_TypeD[features]], axis=0, ignore_index=True)
     if len(typeE_id) > 0:
         load_typeE = newloads_df[newloads_df['LoadID'].isin(typeE_id)].reset_index(drop=True)
@@ -118,9 +119,9 @@ def scheduler_model(newloads_df, histloads_df):
     newloads_part2_ind = (newloads_df['PU_Appt'].isna()) & (newloads_df['DO_ScheduleType'].values > 1)
     newloads_part3_ind = (newloads_df['PU_ScheduleType'].values > 1) & (newloads_df['DO_Appt'].isna())
     newloads_part4_ind = ~(newloads_part1_ind | newloads_part2_ind | newloads_part3_ind)
-    features1 = ['LoadID', 'LoadDate', 'PU_Facility', 'DO_Facility', 'PU_Bucket', 'DO_Bucket', 'count', 'similarity', 'PU_Hour',
+    features1 = ['LoadID', 'Miles', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'DO_Facility', 'DO_ScheduleType', 'PU_Bucket', 'DO_Bucket', 'count', 'similarity', 'PU_Hour',
                  'DO_Hour', 'Transit', 'Dwell']  # for AD type
-    features2 = ['LoadID', 'LoadDate', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt', 'pu_scheduletime',
+    features2 = ['LoadID', 'Miles', 'LoadDate', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt', 'pu_scheduletime',
                  'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime'] # for BCE type
     #note the transit time and dwell time have been set into hours
     # only one side need appt, and the other side is fixed
@@ -248,7 +249,7 @@ def scheduler_rule(newload_df, dwell_df, transit_df):  #Type B and C
                                       pd.to_timedelta((pu_newloaddf['transit'].values + pu_newloaddf['dwelltime'].values
                                                       - pu_newloaddf['PUOffset'].values + pu_newloaddf['DOOffset'].values
                                                       + buffer), unit='h')
-    features = ['LoadID', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt', 'pu_scheduletime',
+    features = ['LoadID', 'Miles',  'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt', 'pu_scheduletime',
                 'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime']
 
     result_df = pd.concat([pu_newloaddf[features], do_newloaddf[features]], axis=0, ignore_index=True)
