@@ -49,12 +49,18 @@ def build_pickle_facility_df():
             facility_hour = QUERY.get_facility_initial()
             days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
             for day in days:
-                openhour = day + 'Open'
-                closehour = day + 'Close'
-                facility_hour[openhour] = pd.to_datetime(facility_hour[openhour].apply(lambda x: x[0:5]))
-                facility_hour[closehour] = pd.to_datetime(facility_hour[closehour].apply(lambda x: x[0:5]))
+                opentime = day + 'Open'
+                closetime = day + 'Close'
+                openhour = day + 'Openhour'
+                closehour = day + 'Closehour'
+                facility_hour[openhour] = pd.to_datetime(facility_hour[opentime]).dt.hour + pd.to_datetime(
+                    facility_hour[opentime]).dt.minute / 60.0
+                facility_hour[closehour] = pd.to_datetime(facility_hour[closetime]).dt.hour + pd.to_datetime(
+                    facility_hour[closetime]).dt.minute / 60.0
+                facility_hour.drop(columns=[opentime, closetime], inplace=True)
+            facility_hour.sort_values(by='FacilityID', inplace=True)
             facility_hour.set_index('FacilityID', drop=True, inplace=True)
-            facility_hour.to_pickle('facility_hour.pkl', index=False)
+            facility_hour.to_pickle('facility_hour.pkl')
         except Exception as ex:
             LOGGER.exception("Exception while running get_cluster_initial(): (attempt=={}): {}".format(
                 backoff_index, repr(ex)))

@@ -27,13 +27,13 @@ def init_read_liveload():
         live_data = pd.DataFrame()
         LOGGER.error("Cannot Find test_data File")
         LOGGER.exception(e)
-    return live_data
+    return live_data.loc[0:100]
 
 def init_read_facility():
     try:
-        facility_hour = pd.read_csv(os.path.join(CONFIG.MODEL_PATH, 'facility_hour_0409.csv'))
-        facility_hour.sort_values(by='FacilityID', inplace=True)
-        facility_hour.set_index('FacilityID', drop=True, inplace=True)
+        facility_hour = pd.read_pickle(os.path.join(CONFIG.MODEL_PATH, 'facility_hour.pkl'))
+        #facility_hour.sort_values(by='FacilityID', inplace=True)
+        #facility_hour.set_index('FacilityID', drop=True, inplace=True)
     except Exception as e:
         facility_hour = pd.DataFrame()
         LOGGER.error("Cannot Find facility_hour File")

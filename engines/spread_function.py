@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+
 def scheduler_spread(df):
     '''
     We had up to 3 options for each load.
@@ -8,7 +9,8 @@ def scheduler_spread(df):
     '''
 
     features = ['LoadID', 'Miles',  'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt', 'pu_scheduletime',
-                'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime']
+                'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime', 'PUOffset', 'DOOffset',
+                'transit', 'dwelltime']
 
     bucket = {'0-0': 0, '0-1': 0.5, '0-2': 1.0, '0-3': 1.5, '0-4': 2.0, '0-5': 2.5, '0-6': 3.0, '0-7': 3.5, '0-8': 4.0,
               '0-9': 4.5, '0-10': 5, '0-11': 5.5,
@@ -25,7 +27,7 @@ def scheduler_spread(df):
               '40-13': 18.75, '40-14': 19.25, '40-15': 19.75, '40-16': 20.25, '40-17': 20.75,
               '50-0': 22.0, '50-1': 22.5, '50-2': 23, '50-3': 21.5, '50-4': 23.0, '50-5': 23.5
               }
-
+    buffer = 1
     df_rank_pu = df.groupby(['LoadDate', 'PU_Facility', 'PU_Bucket']).cumcount()
     df_rank_do = df.groupby(['LoadDate', 'DO_Facility', 'DO_Bucket']).cumcount()
 
@@ -52,13 +54,15 @@ def scheduler_spread(df):
                                                                bucket[str(x['DO_Bucket']) + '-' + str(x['do_ranking'])], axis=1)
 
     df['pu_scheduletime'] = pd.to_datetime(df['LoadDate']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
-    df['DO_Appt_est'] = df['pu_scheduletime'] + pd.to_timedelta((df['Transit'] + df['Dwell']), unit='h')
+    df['DO_Appt_est'] = df['pu_scheduletime'] + pd.to_timedelta((df['Transit'] + df['Dwell']
+                                                                 - df['PUOffset'].values + df['DOOffset'].values
+                                                                 + buffer), unit='h')
 
     df['DO_Date'] = df['DO_Appt_est'].dt.normalize()
 
     df['DO_hour_est'] = df['DO_Appt_est'].dt.hour
 
-    do_diffind = np.abs(df['do_schedulehour'] - df['DO_hour_est']) >= 3 & df['count'] < 3
+    do_diffind = (np.abs(df['do_schedulehour'] - df['DO_hour_est']) >= 3) & (df['count'] < 3)
     df.loc[do_diffind, 'do_schedulehour'] = df.loc[do_diffind, 'DO_hour_est']
 
     dup_doind = df.groupby(['DO_Date', 'DO_Facility', 'do_schedulehour']).cumcount()
@@ -69,5 +73,5 @@ def scheduler_spread(df):
     df.loc[dup_doind == 3 & do_ind, 'do_schedulehour'] = df.loc[dup_doind == 3 & do_ind, 'do_schedulehour'] + 0.25
     df.loc[dup_doind == 4 & do_ind, 'do_schedulehour'] = df.loc[dup_doind == 4 & do_ind, 'do_schedulehour'] + 0.75
     df['do_scheduletime'] = pd.to_datetime(df['DO_Date']) + pd.to_timedelta(df['do_schedulehour'], unit='h')
-
+    df.rename(columns={'Transit':'transit', 'Dwell': 'dwelltime'}, inplace=True)
     return df[features]
