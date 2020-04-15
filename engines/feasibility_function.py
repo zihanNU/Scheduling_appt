@@ -17,6 +17,8 @@ def feasibility_check(load_df, facility_df=pd.DataFrame(), ite=0):
     load_df['PU_DOW'] = load_df['pu_scheduletime'].dt.dayofweek
     load_df['PU_Facility'] = load_df['PU_Facility'].astype(np.int32)
     load_df['DO_Facility'] = load_df['DO_Facility'].astype(np.int32)
+    load_df['PU_Date'] = (load_df['pu_scheduletime']).dt.normalize()
+    load_df['DO_Date'] = (load_df['do_scheduletime']).dt.normalize()
     if facility_df.shape[0] > 0:
         load_df = load_df.merge(facility_df, left_on='PU_Facility', right_index=True, how='left', copy=False)
         load_df['PUopen'] = 0.
@@ -54,15 +56,13 @@ def feasibility_check(load_df, facility_df=pd.DataFrame(), ite=0):
     load_df['pu_schedulehour'] = pd.to_datetime(load_df['pu_scheduletime']).dt.hour
     pu_openind = pu_ind & (load_df['PUopen'].values > load_df['pu_schedulehour'].values + 0.01)  #not valid
     pu_closeind = pu_ind & (load_df['PUclose'].values + 0.01 < load_df['pu_schedulehour'].values)
-    load_df['PU_Date'] = (load_df['pu_scheduletime']).dt.normalize()
-    load_df['DO_Date'] = (load_df['do_scheduletime']).dt.normalize()
+    pu_ind_check = pu_openind | pu_closeind
 
     if pu_openind.any() or pu_closeind.any():
         if pu_openind.any():
             load_df.loc[pu_openind, 'pu_schedulehour'] = load_df.loc[pu_openind, 'PUopen']
         if pu_closeind.any():
             load_df.loc[pu_closeind, 'pu_schedulehour'] = load_df.loc[pu_closeind, 'PUclose']
-        pu_ind_check = pu_openind | pu_closeind
         load_df.loc[pu_ind_check, 'pu_scheduletime_check'] = pd.to_datetime(load_df.loc[pu_ind_check, 'PU_Date']) +\
                                                      pd.to_timedelta(load_df.loc[pu_ind_check, 'pu_schedulehour'], unit='h')
         load_df.loc[pu_ind_check, 'pudelta'] = (pd.to_datetime(load_df.loc[pu_ind_check, 'pu_scheduletime_check']) -
@@ -74,6 +74,7 @@ def feasibility_check(load_df, facility_df=pd.DataFrame(), ite=0):
     load_df['do_schedulehour'] = pd.to_datetime(load_df['do_scheduletime']).dt.hour
     do_openind = do_ind & (load_df['DOopen'].values > load_df['do_schedulehour'].values)
     do_closeind = do_ind & (load_df['DOclose'].values < load_df['do_schedulehour'].values)
+    do_ind_check = do_openind | do_closeind
 
     if do_openind.any() or do_closeind.any():
         if do_openind.any():
@@ -81,7 +82,6 @@ def feasibility_check(load_df, facility_df=pd.DataFrame(), ite=0):
         if do_closeind.any():
             load_df.loc[do_closeind, 'do_schedulehour'] = load_df.loc[do_closeind, 'DOclose']  # set to next day open time
             #load_df.loc[do_closeind, 'DO_Date'] = load_df.loc[do_closeind, 'DO_Date'] + pd.to_timedelta(1, unit='day')
-        do_ind_check = do_openind | do_closeind
         load_df.loc[do_ind_check, 'do_scheduletime_check'] = pd.to_datetime(load_df.loc[do_ind_check, 'DO_Date']) + \
                                                      pd.to_timedelta(load_df.loc[do_ind_check, 'do_schedulehour'],
                                                                      unit='h')
@@ -125,6 +125,6 @@ def dup_check(df):
     df.loc[dup_puind == 2 & pu_ind, 'pu_schedulehour'] = df.loc[dup_puind == 2 & pu_ind, 'pu_schedulehour'] + 0.25
     df.loc[dup_puind == 3 & pu_ind, 'pu_schedulehour'] = df.loc[dup_puind == 3 & pu_ind, 'pu_schedulehour'] - 0.25
 
-    df['pu_scheduletime'] = pd.to_datetime(df['Load_Date']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
+    df['pu_scheduletime'] = pd.to_datetime(df['PU_Date']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
     return df
 

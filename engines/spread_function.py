@@ -28,9 +28,6 @@ def scheduler_spread(df):
               '50-0': 22.0, '50-1': 22.5, '50-2': 23, '50-3': 21.5, '50-4': 23.0, '50-5': 23.5
               }
     buffer = 1
-
-    df['PU_Date'] = (df['pu_scheduletime']).dt.normalize()
-    df['DO_Date'] = (df['do_scheduletime']).dt.normalize()
     df_rank_pu = df.groupby(['LoadDate', 'PU_Facility', 'PU_Bucket']).cumcount()
     df_rank_do = df.groupby(['LoadDate', 'DO_Facility', 'DO_Bucket']).cumcount()
 
@@ -56,7 +53,7 @@ def scheduler_spread(df):
     df.loc[~do_ind, 'do_schedulehour'] = df.loc[~do_ind].apply(lambda x:
                                                                bucket[str(x['DO_Bucket']) + '-' + str(x['do_ranking'])], axis=1)
 
-    df['pu_scheduletime'] = pd.to_datetime(df['PU_Date']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
+    df['pu_scheduletime'] = pd.to_datetime(df['LoadDate']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
     df['DO_Appt_est'] = df['pu_scheduletime'] + pd.to_timedelta((df['Transit'] + df['Dwell']
                                                                  - df['PUOffset'].values + df['DOOffset'].values
                                                                  + buffer), unit='h')
@@ -76,5 +73,5 @@ def scheduler_spread(df):
     df.loc[dup_doind == 3 & do_ind, 'do_schedulehour'] = df.loc[dup_doind == 3 & do_ind, 'do_schedulehour'] + 0.25
     df.loc[dup_doind == 4 & do_ind, 'do_schedulehour'] = df.loc[dup_doind == 4 & do_ind, 'do_schedulehour'] + 0.75
     df['do_scheduletime'] = pd.to_datetime(df['DO_Date']) + pd.to_timedelta(df['do_schedulehour'], unit='h')
-    df.rename(columns={'Transit':'transit', 'Dwell': 'dwelltime'}, inplace=True)
+    df.rename(columns={'Transit': 'transit', 'Dwell': 'dwelltime'}, inplace=True)
     return df[features]
