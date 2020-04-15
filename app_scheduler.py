@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     results_df1 = scheduler_spread(results_df1)  #after this step, reset the column names of df1 into df2.
     results_df = pd.concat([results_df1, results_df2], axis=0, ignore_index=True)
-    results_df - feasibility_check(results_df, facility_hour_df)
-    results_df.to_csv('test_results.csv',index=False)
+    scheduler_results_df = feasibility_check(results_df, facility_hour_df)
+    scheduler_results_df.to_csv('test_results.csv', index=False)
 
 
