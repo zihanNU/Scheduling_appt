@@ -81,7 +81,7 @@ def scheduler_ml_AD(newloads_df, histloads_df):
     typeE_id = list(set(loadid_all) - set(loadid_partTypeD) - set(loadid_partTypeA))
     facility_hour_TypeD = facility_hour_TypeD[facility_hour_TypeD['LoadID'].isin(typeD_id)]
     facility_hour_TypeA = facility_hour_TypeA.merge(newloads_df[['LoadID', 'Miles', 'LoadDate', 'PU_ScheduleType',
-                                                                 'DO_ScheduleType','PUOffset', 'DOOffset',
+                                                                 'DO_ScheduleType', 'PUOffset', 'DOOffset',
                                                                  'PU_Appt', 'DO_Appt']],
                                                     on=['LoadID'], how='left', copy=False)
     facility_hour_TypeD = facility_hour_TypeD.merge(newloads_df[['LoadID', 'Miles', 'LoadDate', 'PU_Facility',
