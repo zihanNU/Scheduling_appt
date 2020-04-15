@@ -45,8 +45,8 @@ def scheduler_spread(df):
     pu_ind = df['pu_ranking_max'].values == 0
     do_ind = df['do_ranking_max'].values == 0
 
-    df.loc[pu_ind, 'pu_schedulehour'] = np.int32(df.loc[pu_ind, 'PU_Hour'])
-    df.loc[do_ind, 'do_schedulehour'] = np.int32(df.loc[do_ind, 'DO_Hour'])
+    df.loc[pu_ind, 'pu_schedulehour'] = np.int32(df.loc[pu_ind, 'PU_Hour']/0.5)*0.5
+    df.loc[do_ind, 'do_schedulehour'] = np.int32(df.loc[do_ind, 'DO_Hour']/0.5)*0.5
 
     df.loc[~pu_ind, 'pu_schedulehour'] = df.loc[~pu_ind].apply(lambda x:
                                                                bucket[str(x['PU_Bucket']) + '-' + str(x['pu_ranking'])], axis=1)
@@ -63,7 +63,18 @@ def scheduler_spread(df):
     df['DO_hour_est'] = df['DO_Appt_est'].dt.hour
 
     do_diffind = (np.abs(df['do_schedulehour'] - df['DO_hour_est']) >= 3) & (df['count'] < 3)
-    df.loc[do_diffind, 'do_schedulehour'] = df.loc[do_diffind, 'DO_hour_est']
+    df.loc[do_diffind, 'do_schedulehour'] = np.int32(df.loc[do_diffind, 'DO_hour_est']/0.5) * 0.5
+
+
+# check dup in spread hour
+    dup_puind = df.groupby(['LoadDate', 'PU_Facility', 'pu_schedulehour']).cumcount()
+    pu_ind = df['PU_ScheduleType'] == 1
+
+    df.loc[dup_puind == 1 & pu_ind, 'pu_schedulehour'] = df.loc[dup_puind == 1 & pu_ind, 'pu_schedulehour'] + 0.5
+    df.loc[dup_puind == 2 & pu_ind, 'pu_schedulehour'] = df.loc[dup_puind == 2 & pu_ind, 'pu_schedulehour'] - 0.5
+    df.loc[dup_puind == 3 & pu_ind, 'pu_schedulehour'] = df.loc[dup_puind == 3 & pu_ind, 'pu_schedulehour'] + 0.25
+    df.loc[dup_puind == 4 & pu_ind, 'do_schedulehour'] = df.loc[dup_puind == 4 & pu_ind, 'pu_schedulehour'] + 0.75
+    df['pu_schedulehour'] = pd.to_datetime(df['LoadDate']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
 
     dup_doind = df.groupby(['DO_Date', 'DO_Facility', 'do_schedulehour']).cumcount()
     do_ind = df['DO_ScheduleType'] == 1

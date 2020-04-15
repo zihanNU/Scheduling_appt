@@ -31,7 +31,7 @@ def schedule_hour_area(df):
     agg_df_sort = agg_df.sort_values(by=['LoadID', 'count', 'similarity', 'Dwell'],
                                      ascending=[True, False, False, True]).reset_index(drop=True)
     df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
-    hour_df = agg_df_sort.loc[df_rank <= 3]
+    hour_df = agg_df_sort.loc[df_rank == 0]
     return hour_df
 
 
@@ -255,6 +255,22 @@ def scheduler_rule(newload_df, dwell_df, transit_df):  #Type B and C
                                       pd.to_timedelta((pu_newloaddf['transit'].values + pu_newloaddf['dwelltime'].values
                                                       - pu_newloaddf['PUOffset'].values + pu_newloaddf['DOOffset'].values
                                                       + buffer), unit='h')
+
+    ## Smoothing
+    pu_newloaddf['PU_Date'] = pd.to_datetime(pu_newloaddf['pu_scheduletime']).dt.normalize
+    pu_newloaddf['pu_schedulehour'] = (pd.to_datetime(pu_newloaddf['pu_scheduletime'])
+                                       - pu_newloaddf['PU_Date']) / pd.to_timedelta(1, unit='h')
+
+    do_newloaddf['DO_Date'] = pd.to_datetime(do_newloaddf['do_scheduletime']).dt.normalize
+    do_newloaddf['do_schedulehour'] = (pd.to_datetime(do_newloaddf['do_scheduletime']) -
+                                       do_newloaddf['DO_Date'].dt.normalize) / pd.to_timedelta(1, unit='h')
+
+    pu_newloaddf['pu_schedulehour'] = np.int32(pu_newloaddf['pu_schedulehour']/0.5) * 0.5
+    do_newloaddf['do_schedulehour'] = np.int32(do_newloaddf['do_schedulehour']/0.5) * 0.5
+    pu_newloaddf['pu_scheduletime'] = pd.to_datetime(pu_newloaddf['PU_Date']) + pd.to_timedelta(pu_newloaddf['pu_schedulehour'], unit='h')
+    do_newloaddf['do_scheduletime'] = pd.to_datetime(do_newloaddf['DO_Date']) + pd.to_timedelta(do_newloaddf['do_schedulehour'], unit='h')
+
+
     features = ['LoadID', 'Miles', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt',
                  'pu_scheduletime', 'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime', 'PUOffset', 'DOOffset',
                  'transit', 'dwelltime']
