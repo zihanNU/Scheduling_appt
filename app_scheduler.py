@@ -46,10 +46,14 @@ if __name__ == '__main__':
 
     LOGGER.info("*** System Initialization Done ***")
     #newloads_part1_id = newloads_df.loc[newloads_part1_ind, 'LoadID'].tolist()
+
     results_df1, results_df2 = scheduler_model(newloads_df, histloads_df)
     results_df1.to_csv('result1.csv', index=False)
     results_df2.to_csv('result2.csv', index=False)
 
     results_df1 = scheduler_spread(results_df1)  #after this step, reset the column names of df1 into df2.
-    results_df = pd.concat([results_df1, results_df2], axis=0, ignore_index=False)
+    results_df = pd.concat([results_df1, results_df2], axis=0, ignore_index=True)
     results_df - feasibility_check(results_df, facility_hour_df)
+    results_df.to_csv('test_results.csv',index=False)
+
+

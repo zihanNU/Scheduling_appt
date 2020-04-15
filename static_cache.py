@@ -57,6 +57,7 @@ def build_pickle_facility_df():
                     facility_hour[opentime]).dt.minute / 60.0
                 facility_hour[closehour] = pd.to_datetime(facility_hour[closetime]).dt.hour + pd.to_datetime(
                     facility_hour[closetime]).dt.minute / 60.0
+                facility_hour[closehour] = facility_hour[closehour].replace(0.0, 23.99999)
                 facility_hour.drop(columns=[opentime, closetime], inplace=True)
             facility_hour.sort_values(by='FacilityID', inplace=True)
             facility_hour.set_index('FacilityID', drop=True, inplace=True)
