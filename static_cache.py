@@ -12,9 +12,6 @@ from engines.dataprocessing import  process_histloads
 
 import config
 
-
-
-
 LOGGER = logging.getLogger(__name__)
 CONFIG = config.Config()
 QUERY = QueryEngine()
