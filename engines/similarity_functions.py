@@ -23,7 +23,7 @@ def similarity_check(newloads_df, histloads_df):
                                ]
     histloadfeatures = ['LoadID', 'PU_Hour', 'DO_Hour', 'PU_Transit_Minute', 'PU_Dwell_Minute',
                         'Miles', 'TotalWeight',
-                        'PU_FacilityID', 'CustomerID', 'DO_FacilityID',
+                        'PU_Facility', 'CustomerID', 'DO_Facility',
                         'PU_Bucket', 'DO_Bucket',
                         'OriginClusterID', 'DestinationClusterID',
                         'OriginLatitude', 'OriginLongitude', 'DestinationLatitude', 'DestinationLongitude']
