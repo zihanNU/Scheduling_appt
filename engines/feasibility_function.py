@@ -1,13 +1,16 @@
 import pandas as pd
 import numpy as np
+import logging
 
+LOGGER = logging.getLogger(__name__)
 weekday_mapper = {0: 'Monday', 1: 'Tuesday', 2: 'Wednesday', 3: 'Thursday', 4: 'Friday', 5: 'Saturday', 6: 'Sunday'}
 
 
 def feasibility_check(load_df, facility_df=pd.DataFrame(), ite=0):
+    LOGGER.info('Start check feasibility for facility open hours')
     features = ['LoadID', 'Miles', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt','PU_Date',
-                'pu_scheduletime',
-                'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'DO_Date', 'do_scheduletime']
+                'pu_scheduletime', 'pu_schedulehour',
+                'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'DO_Date', 'do_scheduletime', 'do_schedulehour']
     #weekday_mapper = {0: 'Monday', 1: 'Tuesday', 2: 'Wednesday', 3: 'Thursday', 4: 'Friday', 5: 'Saturday', 6: 'Sunday'}
     load_df['DO_DOW'] = -1
     do_ind = load_df['DO_ScheduleType'].values == 1 & load_df['DO_Appt'].isna()
@@ -117,11 +120,12 @@ def feasibility_check(load_df, facility_df=pd.DataFrame(), ite=0):
 
     if (pu_ind_check.any() or do_ind_check.any()) and ite < 5:
         load_df = feasibility_check(load_df, ite=ite+1)
-    load_df = smooth(load_df)
+    #load_df = smooth(load_df)
     return load_df[features].sort_values(by=['LoadDate', 'PU_Facility', 'DO_Facility'])
 
 
 def dup_check(df):
+    LOGGER.info('Start check Duplicate schedule for same facility')
     df.sort_values(by=['PU_Facility', 'DO_Facility'], inplace=True)
     df.reset_index(drop=True, inplace=True)
     dup_doind = df.groupby(['DO_Date', 'DO_Facility', 'do_scheduletime']).cumcount()
@@ -141,6 +145,7 @@ def dup_check(df):
         df.loc[(dup_puind == 3) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 3) & pu_ind, 'pu_schedulehour'] - 0.25
 
     df['pu_scheduletime'] = pd.to_datetime(df['PU_Date']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
+    LOGGER.info('Done check Duplicate schedule for same facility')
     return df
 
 

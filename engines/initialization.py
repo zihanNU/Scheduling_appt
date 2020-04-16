@@ -27,7 +27,7 @@ def init_read_liveload():
         live_data = pd.DataFrame()
         LOGGER.error("Cannot Find test_data File")
         LOGGER.exception(e)
-    return live_data.loc[0:100]
+    return live_data
 
 def init_read_facility():
     try:

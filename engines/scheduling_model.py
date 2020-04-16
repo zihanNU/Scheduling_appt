@@ -3,7 +3,7 @@ import numpy as np
 import config
 from .similarity_functions import similarity_check
 import logging
-from datetime import timedelta
+#from datetime import timedelta
 #from collections import Counter
 
 CONFIG = config.Config()
@@ -95,6 +95,11 @@ def scheduler_ml_AD(newloads_df, histloads_df):
     if len(typeE_id) > 0:
         load_typeE = newloads_df[newloads_df['LoadID'].isin(typeE_id)].reset_index(drop=True)
         facility_hour_TypeE = scheduler_newFac(load_typeE)
+    else:
+        feature_E = ['LoadID', 'Miles', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt',
+         'pu_scheduletime', 'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime', 'PUOffset',
+         'DOOffset', 'transit', 'dwelltime']
+        facility_hour_TypeE = pd.DataFrame(columns=feature_E)
     return newloads_ml, facility_hour_TypeE
 
 
@@ -136,6 +141,7 @@ def scheduler_model(newloads_df, histloads_df):
                  'transit', 'dwelltime'] # for BCE type
     #note the transit time and dwell time have been set into hours
     # only one side need appt, and the other side is fixed， rule based
+    LOGGER.info('Finish seperating into model types')
     if newloads_part4_ind.any():
         newload_part4 = newloads_df[newloads_part4_ind].reset_index(drop=True)
         df_dict = similarity_check(newload_part4, histloads_df)
@@ -146,6 +152,7 @@ def scheduler_model(newloads_df, histloads_df):
         facility_hour_TypeC = scheduler_rule(newload_part4, dwell_df, transit_df)
     else:
         facility_hour_TypeC = pd.DataFrame(columns=features2)
+    LOGGER.info('Finish rule based into modeling')
 
     # no side is fixed
     if newloads_part1_ind.any():
@@ -155,6 +162,7 @@ def scheduler_model(newloads_df, histloads_df):
     else:
         newload_scheduler_part1 = pd.DataFrame(columns=features1)
         newload_typeE_part1 = pd.DataFrame(columns=features2)
+    LOGGER.info('Finish ml based into modeling for both side appt')
 
     if newloads_part2_ind.any():
         #PU need appt, but DO is free for appt. can use type A or D
@@ -163,6 +171,7 @@ def scheduler_model(newloads_df, histloads_df):
     else:
         newload_scheduler_part2 = pd.DataFrame(columns=features1)
         newload_typeE_part2 = pd.DataFrame(columns=features2)
+    LOGGER.info('Finish ml based into modeling for pu side appt')
 
     if newloads_part3_ind.any():
         #DO need appt, but PU is free for appt. can use type A
@@ -171,6 +180,7 @@ def scheduler_model(newloads_df, histloads_df):
     else:
         newload_scheduler_part3 = pd.DataFrame(columns=features1)
         newload_typeE_part3 = pd.DataFrame(columns=features2)
+    LOGGER.info('Finish ml based into modeling for do side appt')
 
     newload_scheduler_typeAD = pd.concat([newload_scheduler_part1, newload_scheduler_part2], axis=0, ignore_index=True)
     newload_scheduler_typeAD = pd.concat([newload_scheduler_typeAD, newload_scheduler_part3], axis=0, ignore_index=True)
@@ -203,6 +213,7 @@ def transit_time(miles, speed_base=45):
 
 
 def scheduler_newFac(newload_df):  #Type E
+    LOGGER.info('Start new Fac. scheduling')
     speed_base = 45
     newload_df['traveltime'] = newload_df['Miles'].values / speed_base
     newload_df['resttime'] = np.int32(newload_df['traveltime'].values / 10) * 10 + np.int32(
@@ -223,11 +234,12 @@ def scheduler_newFac(newload_df):  #Type E
     features = ['LoadID', 'Miles', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt',
                  'pu_scheduletime', 'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime', 'PUOffset',
                 'DOOffset', 'transit', 'dwelltime']
-
+    LOGGER.info('Done new Fac. scheduling')
     return newload_df[features].reset_index(drop=True)
 
 
 def scheduler_rule(newload_df, dwell_df, transit_df):  #Type B and C
+    LOGGER.info('Start rule based scheduling')
     speed_base = 45
     newload_df['traveltime'] = newload_df['Miles'].values / speed_base
     newload_df['resttime'] = np.int32(newload_df['traveltime'].values / 10) * 10 + np.int32(
