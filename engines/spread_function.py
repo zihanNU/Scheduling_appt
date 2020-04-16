@@ -69,20 +69,21 @@ def scheduler_spread(df):
 # check dup in spread hour
     dup_puind = df.groupby(['LoadDate', 'PU_Facility', 'pu_schedulehour']).cumcount()
     pu_ind = df['PU_ScheduleType'] == 1
-
-    df.loc[dup_puind == 1 & pu_ind, 'pu_schedulehour'] = df.loc[dup_puind == 1 & pu_ind, 'pu_schedulehour'] + 0.5
-    df.loc[dup_puind == 2 & pu_ind, 'pu_schedulehour'] = df.loc[dup_puind == 2 & pu_ind, 'pu_schedulehour'] - 0.5
-    df.loc[dup_puind == 3 & pu_ind, 'pu_schedulehour'] = df.loc[dup_puind == 3 & pu_ind, 'pu_schedulehour'] + 0.25
-    df.loc[dup_puind == 4 & pu_ind, 'do_schedulehour'] = df.loc[dup_puind == 4 & pu_ind, 'pu_schedulehour'] + 0.75
-    df['pu_schedulehour'] = pd.to_datetime(df['LoadDate']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
+    if dup_puind.max():
+        df.loc[(dup_puind == 1) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 1) & pu_ind, 'pu_schedulehour'] + 0.5
+        df.loc[(dup_puind == 2) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 2) & pu_ind, 'pu_schedulehour'] - 0.5
+        df.loc[(dup_puind == 3) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 3) & pu_ind, 'pu_schedulehour'] + 0.25
+        df.loc[(dup_puind == 4) & pu_ind, 'do_schedulehour'] = df.loc[(dup_puind == 4) & pu_ind, 'pu_schedulehour'] + 0.75
+    df['pu_scheduletime'] = pd.to_datetime(df['LoadDate']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
 
     dup_doind = df.groupby(['DO_Date', 'DO_Facility', 'do_schedulehour']).cumcount()
     do_ind = df['DO_ScheduleType'] == 1
 
-    df.loc[dup_doind == 1 & do_ind, 'do_schedulehour'] = df.loc[dup_doind == 1 & do_ind, 'do_schedulehour'] + 0.5
-    df.loc[dup_doind == 2 & do_ind, 'do_schedulehour'] = df.loc[dup_doind == 2 & do_ind, 'do_schedulehour'] - 0.5
-    df.loc[dup_doind == 3 & do_ind, 'do_schedulehour'] = df.loc[dup_doind == 3 & do_ind, 'do_schedulehour'] + 0.25
-    df.loc[dup_doind == 4 & do_ind, 'do_schedulehour'] = df.loc[dup_doind == 4 & do_ind, 'do_schedulehour'] + 0.75
+    if dup_doind.max():
+        df.loc[(dup_doind == 1) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 1) & do_ind, 'do_schedulehour'] + 0.5
+        df.loc[(dup_doind == 2) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 2) & do_ind, 'do_schedulehour'] - 0.5
+        df.loc[(dup_doind == 3) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 3) & do_ind, 'do_schedulehour'] + 0.25
+        df.loc[(dup_doind == 4) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 4) & do_ind, 'do_schedulehour'] + 0.75
     df['do_scheduletime'] = pd.to_datetime(df['DO_Date']) + pd.to_timedelta(df['do_schedulehour'], unit='h')
     df.rename(columns={'Transit': 'transit', 'Dwell': 'dwelltime'}, inplace=True)
     return df[features]
