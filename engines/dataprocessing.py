@@ -57,6 +57,7 @@ def process_liveloads(df, city_df, cluster_df):
     LOGGER.info('Loading Live Data, Available loads...')
     #newloads_df = newloads_df[(newloads_df['Division'].isin([1, 2, 3, 4]))& (newloads_df['ShipmentType'].isin([0, 1, 2, 5]))]
     #newloads_df = newloads_df[newloads_df['TotalRate'] > 150]
+
     mask_ind = np.flatnonzero(df['Miles'].values < 0 | df['Miles'].isna().values)
     if mask_ind.size > 0:
         df['Miles'].values[mask_ind] = approx_dist(
@@ -114,7 +115,7 @@ def process_liveloads(df, city_df, cluster_df):
     schedule_df.loc[do_ind, 'DO_Appt'] = schedule_df.loc[~do_ind, 'DO_appt_nonschedule']
 
     LOGGER.info('Preprocessing Live Data, Available loads...')
-    drop_features = ['index_x', 'index_y', 'StateID_x', 'StateID_y', 'offset_x', 'offset_y']
+    drop_features = ['StateID_x', 'StateID_y', 'offset_x', 'offset_y']
     # ['LoadDate','PU_time','PU_ScheduleCloseTime','PU_appt_nonschedule',
     #                'DO_time','DO_ScheduleCloseTime','DO_appt_nonschedule'  ]
 
@@ -122,8 +123,12 @@ def process_liveloads(df, city_df, cluster_df):
     LOGGER.info('Loading Live Data End, Available loads...')
     newloads_df = assign_latlong_bycity(schedule_df, city_df)
     newloads_df = encode_load(newloads_df, 'EquipmentType')
-
-    return newloads_df
+    pu_type1_ind = newloads_df['PU_ScheduleType'].values == 1
+    pu_nan_ind = newloads_df['PU_Appt'].isna()
+    do_type1_ind = newloads_df['DO_ScheduleType'].values == 1
+    do_nan_ind = newloads_df['DO_Appt'].isna()
+    newloads_select_df = newloads_df.loc[(pu_type1_ind & pu_nan_ind) | (do_type1_ind & do_nan_ind)]
+    return newloads_select_df
 
 
 def process_histloads(df, city_df, cluster_df):
@@ -203,4 +208,4 @@ def test_function():
         print('Train Data Processing Done')
     except Exception as e:
         LOGGER.exception(e)
-#test_function()
+test_function()
