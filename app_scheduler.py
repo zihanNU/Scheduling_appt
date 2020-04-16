@@ -57,6 +57,6 @@ if __name__ == '__main__':
                 'pu_scheduletime',
                 'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime']
     scheduler_results_df = feasibility_check(results_df, facility_hour_df)[features]
-    scheduler_results_df.to_csv('test_results.csv', index=False)
+    scheduler_results_df.to_csv(os.path.join(CONFIG.MODEL_PATH, 'test_results.csv'), index=False)
 
 
