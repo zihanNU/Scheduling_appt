@@ -8,7 +8,7 @@ import numpy as np
 
 from engines.query import QueryEngine
 from engines.offset_functions import offset
-from engines.dataprocessing import  process_histloads
+from engines.dataprocessing import process_histloads
 
 import config
 
@@ -44,6 +44,7 @@ def build_pickle_facility_df():
     while facility_hour is None:
         try:
             facility_hour = QUERY.get_facility_initial()
+            facility_hour['Tag'] = 0
             days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
             for day in days:
                 opentime = day + 'Open'
@@ -54,7 +55,10 @@ def build_pickle_facility_df():
                     facility_hour[opentime]).dt.minute / 60.0
                 facility_hour[closehour] = pd.to_datetime(facility_hour[closetime]).dt.hour + pd.to_datetime(
                     facility_hour[closetime]).dt.minute / 60.0
-                facility_hour[closehour] = facility_hour[closehour].replace(0.0, 23.99999)
+                closedate_ind = facility_hour[openhour] == facility_hour[closehour]
+                facility_hour.loc[~closedate_ind, closehour] = \
+                    facility_hour.loc[~closedate_ind, closehour].replace(0.0, 23.99999)
+                facility_hour.loc[closedate_ind, 'Tag'] = facility_hour.loc[closedate_ind, 'Tag'] + 1
                 facility_hour.drop(columns=[opentime, closetime], inplace=True)
             facility_hour.sort_values(by='FacilityID', inplace=True)
             facility_hour.set_index('FacilityID', drop=True, inplace=True)
