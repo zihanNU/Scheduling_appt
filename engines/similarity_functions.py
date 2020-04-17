@@ -102,7 +102,7 @@ def similarity_cal_all(df):
             newload_df.values / norm(newload_df.values, axis=1)[:, np.newaxis])).sum(axis=1)
     sim_df = {'LoadID': df['LoadID'],
               'histloadID': df['histloadID'],
-              'similarity': sim_row,
+              'similarity': np.round(sim_row, 2),
               'PU_Facility': df['PU_Facility'],
               'PU_Hour': df['PU_Hour'],
               'PU_Bucket': df['PU_Bucket'],
@@ -130,7 +130,7 @@ def similarity_cal_dwell(df):
             newload_df.values / norm(newload_df.values, axis=1)[:, np.newaxis])).sum(axis=1)
     sim_df = {'LoadID': df['LoadID'],
               'histloadID': df['histloadID'],
-              'similarity': sim_row,
+              'similarity': np.round(sim_row, 2),
               'PU_Facility': df['PU_Facility'],
               'PU_Hour': df['PU_Hour'],
               'PU_Bucket': df['PU_Bucket'],
@@ -173,7 +173,7 @@ def similarity_cal_travel(df):
             newload_df.values / norm(newload_df.values, axis=1)[:, np.newaxis])).sum(axis=1)
     sim_df = {'LoadID': df['LoadID'],
               'histloadID': df['histloadID'],
-              'similarity': sim_row,
+              'similarity': np.round(sim_row, 2),
               'OriginCluster': df['new_Orig_Cluster'],
               'DestCluster': df['new_Dest_Cluster'],
               'Transit': df['PU_Transit_Minute']/60.0
@@ -206,7 +206,7 @@ def similarity_cal_area(df):
             newload_df.values / norm(newload_df.values, axis=1)[:, np.newaxis])).sum(axis=1)
     sim_df = {'LoadID': df['LoadID'],
               'histloadID': df['histloadID'],
-              'similarity': sim_row,
+              'similarity': np.round(sim_row, 2),
               'OriginCluster': df['new_Orig_Cluster'],
               'DestCluster': df['new_Dest_Cluster'],
               'PU_Hour': df['PU_Hour'],
