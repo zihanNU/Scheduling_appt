@@ -37,9 +37,9 @@ if __name__ == '__main__':
     LOGGER.info("*** System Initialization ***")
 
     try:
-        histloads_df = init_read_histload()
-        facility_hour_df = init_read_facility()
-        newloads_df = init_read_liveload()
+        histloads_df = init_read_histload('train_data_processed_cv.csv')
+        facility_hour_df = init_read_facility('facility_hour.pkl')
+        newloads_df = init_read_liveload('test_data_processed_cv.csv')
         #newloads_df = get_liveloads()
     except Exception as e:
         LOGGER.exception(e)
@@ -48,15 +48,19 @@ if __name__ == '__main__':
     #newloads_part1_id = newloads_df.loc[newloads_part1_ind, 'LoadID'].tolist()
 
     results_df1, results_df2 = scheduler_model(newloads_df, histloads_df)
-    results_df1.to_csv('result1.csv', index=False)
-    results_df2.to_csv('result2.csv', index=False)
-
+    # results_df1.to_csv('result1_cv.csv', index=False)
+    # results_df2.to_csv('result2_cv.csv', index=False)
+    features = ['LoadID', 'Miles', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt', 'PU_Date',
+                'pu_scheduletime', 'pu_schedulehour',
+                'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'DO_Date', 'do_scheduletime', 'do_schedulehour']
+    scheduler_results_df = pd.DataFrame(columns=features)
     results_df1 = scheduler_spread(results_df1)  #after this step, reset the column names of df1 into df2.
     results_df = pd.concat([results_df1, results_df2], axis=0, ignore_index=True)
     features = ['LoadID', 'Miles', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt',
-                'pu_scheduletime',
-                'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime']
-    scheduler_results_df = feasibility_check(results_df, facility_hour_df)[features]
-    scheduler_results_df.to_csv(os.path.join(CONFIG.MODEL_PATH, 'test_results.csv'), index=False)
+                'pu_scheduletime', 'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime',
+                'PUopen', 'PUclose', 'DOopen', 'DOclose']
+    scheduler_results_df = feasibility_check(results_df, facility_hour_df)
+    scheduler_results_df[features].to_csv(os.path.join(CONFIG.MODEL_PATH, 'test_results_cv.csv'), index=False)
+
 
 
