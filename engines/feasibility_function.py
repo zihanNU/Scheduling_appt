@@ -25,10 +25,13 @@ def check_opendate(load_df, facility_df):
 
     doclose_date = (load_df['DOopen'] == load_df['DOclose']) & do_ind
     if doclose_date.any():
+        # if we only reset do date, delay to next day, the hours are set to 00:00.
+        # in the hour check, it will be set to open hour
         load_df.loc[doclose_date, 'DO_Date'] = \
             pd.to_datetime(load_df.loc[doclose_date, 'DO_Date']) + pd.to_timedelta(1, unit='day')
         load_df.loc[doclose_date, 'do_scheduletime'] = \
             pd.to_datetime(load_df.loc[doclose_date, 'do_scheduletime']) + pd.to_timedelta(1, unit='day')
+        load_df.loc[doclose_date, 'do_scheduletime'] = load_df.loc[doclose_date, 'do_scheduletime'].dt.normalize()
         load_df = check_opendate(load_df, facility_df)
 
     return load_df.reset_index(drop=True)
