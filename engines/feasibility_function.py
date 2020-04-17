@@ -111,6 +111,16 @@ def check_hours(load_df, facility_df, ite=0):
             load_df.loc[do_earlyind, 'do_schedulehour'] = load_df.loc[do_earlyind, 'DOopen'] # set a little late
         if do_lateind.any():
             # if it is still feasible, then set to the same day, close time, otherwise, the next day
+            travel_org = (load_df.loc[do_lateind, 'transit'] + load_df.loc[do_lateind, 'dwelltime'] \
+                          + load_df.loc[do_lateind, 'DOOffset'] - load_df.loc[do_lateind, 'PUOffset'] + buffer)
+            do_settoopen = pd.to_datetime(load_df.loc[do_lateind, 'DO_Date']) + \
+                            pd.to_timedelta(load_df.loc[do_lateind, 'DOopen'], unit='h')
+            travel = (pd.to_datetime(do_settoopen) - pd.to_datetime(load_df.loc[do_lateind, 'pu_scheduletime'])) \
+                     / pd.to_timedelta(1, unit='h')
+            travelopen_ind = (travel >= travel_org * 0.9)
+            # set to same day
+            load_df.loc[do_lateind & travelopen_ind, 'do_schedulehour'] = load_df.loc[do_lateind & travelopen_ind, 'DOopen']
+
             do_settoclose = pd.to_datetime(load_df.loc[do_lateind, 'DO_Date']) + \
                           pd.to_timedelta(load_df.loc[do_lateind, 'DOclose'], unit='h')
             travel = (pd.to_datetime(do_settoclose) - pd.to_datetime(load_df.loc[do_lateind, 'pu_scheduletime']))\
@@ -119,10 +129,13 @@ def check_hours(load_df, facility_df, ite=0):
                         + load_df.loc[do_lateind, 'DOOffset'] - load_df.loc[do_lateind, 'PUOffset'] + buffer)
             travel_ind = (travel >= travel_org * 0.9)
             # set to same day
-            load_df.loc[do_lateind & travel_ind, 'do_schedulehour'] = load_df.loc[do_lateind & travel_ind, 'DOclose']
+            load_df.loc[do_lateind & travel_ind & ~travelopen_ind, 'do_schedulehour'] = \
+                load_df.loc[do_lateind & travel_ind & ~travelopen_ind, 'DOclose']
             # set a little late nextday
-            load_df.loc[do_lateind & ~travel_ind, 'do_schedulehour'] = load_df.loc[do_lateind & ~travel_ind, 'DOopen']
-            load_df.loc[do_lateind & ~travel_ind, 'DO_Date'] = load_df.loc[do_lateind & ~travel_ind, 'DO_Date']\
+            load_df.loc[do_lateind & ~travel_ind & ~travelopen_ind, 'do_schedulehour'] =\
+                load_df.loc[do_lateind & ~travel_ind & ~travelopen_ind, 'DOopen']
+            load_df.loc[do_lateind & ~travel_ind & ~travelopen_ind, 'DO_Date'] = \
+                load_df.loc[do_lateind & ~travel_ind & ~travelopen_ind, 'DO_Date']\
                                                                + pd.to_timedelta(1, unit='day')
         if do_midind.any():
             load_df.loc[do_midind, 'do_schedulehour'] = load_df.loc[do_midind, 'DOopen']  # set a little late
@@ -170,12 +183,12 @@ def join_facility(load_df, facility_df):
 
     load_df['pu_scheduletime'].fillna(load_df['PU_Appt'], inplace=True)
     load_df['do_scheduletime'].fillna(load_df['DO_Appt'], inplace=True)
-    load_df['DO_DOW'] = load_df['do_scheduletime'].dt.dayofweek
-    load_df['PU_DOW'] = load_df['pu_scheduletime'].dt.dayofweek
+    load_df['DO_DOW'] = pd.to_datetime(load_df['do_scheduletime']).dt.dayofweek
+    load_df['PU_DOW'] = pd.to_datetime(load_df['pu_scheduletime']).dt.dayofweek
     load_df['PU_Facility'] = load_df['PU_Facility'].astype(np.int32)
     load_df['DO_Facility'] = load_df['DO_Facility'].astype(np.int32)
-    load_df['PU_Date'] = (load_df['pu_scheduletime']).dt.normalize()
-    load_df['DO_Date'] = (load_df['do_scheduletime']).dt.normalize()
+    load_df['PU_Date'] = pd.to_datetime(load_df['pu_scheduletime']).dt.normalize()
+    load_df['DO_Date'] = pd.to_datetime(load_df['do_scheduletime']).dt.normalize()
     if facility_df.shape[0] > 0:
         load_df = load_df.merge(facility_df, left_on='PU_Facility', right_index=True, how='left', copy=False)
         load_df['PUopen'] = 0.
