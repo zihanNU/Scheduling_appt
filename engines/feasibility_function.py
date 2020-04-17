@@ -8,26 +8,27 @@ LOGGER = logging.getLogger(__name__)
 def check_opendate(load_df, facility_df):
     LOGGER.info("Check Open Dates")
     load_df = join_facility(load_df, facility_df)
-
-    puclose_date = (load_df['PUopen'] == load_df['PUclose'])
+    do_ind = load_df['DO_ScheduleType'].values == 1 & load_df['DO_Appt'].isna()
+    pu_ind = load_df['PU_ScheduleType'].values == 1 & load_df['PU_Appt'].isna()
+    puclose_date = (load_df['PUopen'] == load_df['PUclose']) & pu_ind
 
     if puclose_date.any():
-        load_df.loc[puclose_date, 'PU_Date'] = pd.to_datetime(load_df.loc[puclose_date, 'PU_Date']) \
-                                               + pd.to_timedelta(1, unit='day')
-        load_df.loc[puclose_date, 'DO_Date'] = pd.to_datetime(load_df.loc[puclose_date, 'DO_Date']) \
-                                               + pd.to_timedelta(1, unit='day')
-        load_df.loc[puclose_date, 'pu_scheduletime'] = pd.to_datetime(load_df.loc[puclose_date, 'pu_scheduletime']) \
-                                                       + pd.to_timedelta(1, unit='day')
-        load_df.loc[puclose_date, 'do_scheduletime'] = pd.to_datetime(load_df.loc[puclose_date, 'do_scheduletime']) \
-                                                       + pd.to_timedelta(1, unit='day')
+        load_df.loc[puclose_date, 'PU_Date'] = \
+            pd.to_datetime(load_df.loc[puclose_date, 'PU_Date']) + pd.to_timedelta(1, unit='day')
+        load_df.loc[puclose_date, 'DO_Date'] = \
+            pd.to_datetime(load_df.loc[puclose_date, 'DO_Date']) + pd.to_timedelta(1, unit='day')
+        load_df.loc[puclose_date, 'pu_scheduletime'] = \
+            pd.to_datetime(load_df.loc[puclose_date, 'pu_scheduletime']) + pd.to_timedelta(1, unit='day')
+        load_df.loc[puclose_date, 'do_scheduletime'] = \
+            pd.to_datetime(load_df.loc[puclose_date, 'do_scheduletime']) + pd.to_timedelta(1, unit='day')
         load_df = check_opendate(load_df, facility_df)
 
-    doclose_date = (load_df['DOopen'] == load_df['DOclose'])
+    doclose_date = (load_df['DOopen'] == load_df['DOclose']) & do_ind
     if doclose_date.any():
-        load_df.loc[doclose_date, 'DO_Date'] = pd.to_datetime(load_df.loc[doclose_date, 'DO_Date']) \
-                                               + pd.to_timedelta(1, unit='day')
-        load_df.loc[doclose_date, 'do_scheduletime'] = pd.to_datetime(load_df.loc[doclose_date, 'do_scheduletime']) \
-                                                       + pd.to_timedelta(1, unit='day')
+        load_df.loc[doclose_date, 'DO_Date'] = \
+            pd.to_datetime(load_df.loc[doclose_date, 'DO_Date']) + pd.to_timedelta(1, unit='day')
+        load_df.loc[doclose_date, 'do_scheduletime'] = \
+            pd.to_datetime(load_df.loc[doclose_date, 'do_scheduletime']) + pd.to_timedelta(1, unit='day')
         load_df = check_opendate(load_df, facility_df)
 
     return load_df.reset_index(drop=True)
@@ -50,71 +51,93 @@ def check_hours(load_df, facility_df, ite=0):
 
 ## Check for PU Hours
     load_df['pu_schedulehour'] = (pd.to_datetime(load_df['pu_scheduletime']) - load_df['PU_Date']) / pd.to_timedelta(1, unit='h')
-    pu_openind = pu_ind & (load_df['PUopen'].values > load_df['pu_schedulehour'].values + 0.01)  # not valid
-    pu_closeind = pu_ind & (((load_df['PUclose'].values <= load_df['pu_schedulehour'].values) &
-                             (load_df['PUclose'].values >= load_df['PUopen'].values))
-                            | ((load_df['PUclose'].values > load_df['pu_schedulehour'].values) &
-                               (load_df['PUclose'].values < load_df['PUopen'].values))
-                            )
-    pu_ind_check = pu_openind | pu_closeind
+    arrive_early_ind = (load_df['PUopen'].values > load_df['pu_schedulehour'].values + 0.01) & \
+                       (load_df['PUopen'].values <= load_df['PUclose'].values)
+    arrive_late_ind = (load_df['PUclose'].values <= load_df['pu_schedulehour'].values) & \
+                      (load_df['PUopen'].values <= load_df['PUclose'].values)  # arrive too late
+    arrive_mid_ind = (load_df['PUclose'].values > load_df['pu_schedulehour'].values) & \
+                       (load_df['PUopen'].values > load_df['PUclose'].values)  # arrive too early  for close time
 
-    if pu_openind.any() or pu_closeind.any():
-        if pu_openind.any():
-            load_df.loc[pu_openind, 'pu_schedulehour'] = load_df.loc[pu_openind, 'PUopen']
-        if pu_closeind.any():
-            load_df.loc[pu_closeind, 'pu_schedulehour'] = np.maximum(load_df.loc[pu_closeind, 'PUopen'],
-                                                                     load_df.loc[pu_closeind, 'PUclose'])
+    pu_earlyind = pu_ind & arrive_early_ind
+    pu_lateind = pu_ind & arrive_late_ind
+    pu_midind = pu_ind & arrive_mid_ind
+    pu_ind_check = pu_earlyind | pu_lateind | pu_midind
+
+    if pu_ind_check.any():
+        if pu_earlyind.any():
+            load_df.loc[pu_earlyind, 'pu_schedulehour'] = load_df.loc[pu_earlyind, 'PUopen']  # set a little late
+        if pu_lateind.any():
+            load_df.loc[pu_lateind, 'pu_schedulehour'] = load_df.loc[pu_lateind, 'PUclose']  # set a little early
+        if pu_midind.any():
+            load_df.loc[pu_midind, 'pu_schedulehour'] = load_df.loc[pu_midind, 'PUclose']  # set a little early
         load_df.loc[pu_ind_check, 'pu_scheduletime_check'] = pd.to_datetime(load_df.loc[pu_ind_check, 'PU_Date']) + \
                                                              pd.to_timedelta(
                                                                  load_df.loc[pu_ind_check, 'pu_schedulehour'], unit='h')
         load_df.loc[pu_ind_check, 'pudelta'] = (pd.to_datetime(load_df.loc[pu_ind_check, 'pu_scheduletime_check']) -
                                                 pd.to_datetime(load_df.loc[pu_ind_check, 'pu_scheduletime'])) / \
                                                 pd.to_timedelta(1, unit='h')
-        load_df.loc[pu_ind_check, 'do_scheduletime_check'] = pd.to_datetime(
-            load_df.loc[pu_ind_check, 'do_scheduletime']).values + \
-                                                             pd.to_timedelta(load_df.loc[pu_ind_check, 'pudelta'],
-                                                                             unit='h')
+        pos_delta = load_df['pudelta'] > 0
+        # if set early, no need to reset again.
+        load_df.loc[pu_ind_check & pos_delta, 'do_scheduletime_check'] = \
+            pd.to_datetime(load_df.loc[pu_ind_check & pos_delta, 'do_scheduletime']).values \
+            + pd.to_timedelta(load_df.loc[pu_ind_check & pos_delta, 'pudelta'], unit='h')
         load_df['pu_scheduletime'] = load_df['pu_scheduletime_check'].copy()
         load_df['do_scheduletime'] = load_df['do_scheduletime_check'].copy()
 
-
-### Checo for DO hours
+### Check for DO hours
     load_df['do_schedulehour'] = (pd.to_datetime(load_df['do_scheduletime']) -
                                   load_df['DO_Date']) / pd.to_timedelta(1, unit='h')
-    do_openind = do_ind & (load_df['DOopen'].values > load_df['do_schedulehour'].values)
-    do_closeind = do_ind & (((load_df['DOclose'].values <= load_df['do_schedulehour'].values) &
-                             (load_df['DOclose'].values >= load_df['DOopen'].values))
-                            | ((load_df['DOclose'].values > load_df['do_schedulehour'].values) &
-                               (load_df['DOclose'].values < load_df['DOopen'].values))
-                            )
-    do_ind_check = do_openind | do_closeind
+    arrive_early_ind = (load_df['DOopen'].values > load_df['do_schedulehour'].values + 0.01) & \
+                       (load_df['DOopen'].values <= load_df['DOclose'].values)
+    arrive_late_ind = (load_df['DOclose'].values <= load_df['do_schedulehour'].values) & \
+                      (load_df['DOopen'].values <= load_df['DOclose'].values)  # arrive too late
+    arrive_mid_ind = (load_df['DOclose'].values > load_df['do_schedulehour'].values) & \
+                     (load_df['DOopen'].values > load_df['DOclose'].values)  # arrive too early  for close time
 
-    if do_openind.any() or do_closeind.any():
-        if do_openind.any():
-            load_df.loc[do_openind, 'do_schedulehour'] = load_df.loc[do_openind, 'DOopen']
-        if do_closeind.any():
-            load_df.loc[do_closeind, 'do_schedulehour'] = np.maximum(load_df.loc[do_closeind, 'DOopen'],
-                                                                     load_df.loc[do_closeind, 'DOclose'])
+    do_earlyind = do_ind & arrive_early_ind
+    do_lateind = do_ind & arrive_late_ind
+    do_midind = do_ind & arrive_mid_ind
+    do_ind_check = do_earlyind | do_lateind | do_midind
+
+    if do_ind_check.any():
+        if do_earlyind.any():
+            load_df.loc[do_earlyind, 'do_schedulehour'] = load_df.loc[do_earlyind, 'DOopen'] # set a little late
+        if do_lateind.any():
+            load_df.loc[do_lateind, 'do_schedulehour'] = load_df.loc[do_lateind, 'DOclose']  # set a little late
+            load_df.loc[do_lateind, 'DO_Date'] = load_df.loc[do_lateind, 'DO_Date'] + pd.to_timedelta(1, unit='day')
+        if do_midind.any():
+            load_df.loc[do_midind, 'do_schedulehour'] = load_df.loc[do_midind, 'DOopen']  # set a little late
+
         load_df.loc[do_ind_check, 'do_scheduletime_check'] = pd.to_datetime(load_df.loc[do_ind_check, 'DO_Date']) + \
                                                              pd.to_timedelta(load_df.loc[do_ind_check, 'do_schedulehour'], unit='h')
-        load_df.loc[do_ind_check, 'dodelta'] = (pd.to_datetime(load_df.loc[do_ind_check, 'do_scheduletime_check']) -
-                                                pd.to_datetime(load_df.loc[do_ind_check, 'do_scheduletime'])) / \
-                                                pd.to_timedelta(1, unit='h')
-        load_df.loc[do_ind_check, 'pu_scheduletime_check'] = pd.to_datetime(
-            load_df.loc[do_ind_check, 'pu_scheduletime_check']).values + pd.to_timedelta(
-            load_df.loc[do_ind_check, 'dodelta'], unit='h')
 
-        load_df['PU_Date_new'] = pd.to_datetime(load_df['pu_scheduletime_check']).dt.normalize()
-        pu_date_check = (pd.to_datetime(load_df['PU_Date_new']) - pd.to_datetime(load_df['LoadDate']))\
-                        / pd.to_timedelta(1, unit='h') < 0    # if less than loaddate
-        if pu_date_check.any():
-            load_df['pu_scheduletime_check'] = pd.to_datetime(load_df['pu_scheduletime_check']) + pd.to_timedelta(1,
-                                                                                                                  unit='day')
-            load_df['do_scheduletime_check'] = pd.to_datetime(load_df['do_scheduletime_check']) + pd.to_timedelta(1,
-                                                                                                                  unit='day')
-    if pu_ind_check.any() or do_ind_check.any():
+        ## the dodelta will be positive always. as we reset do_date
+        # load_df.loc[do_ind_check, 'dodelta'] = (pd.to_datetime(load_df.loc[do_ind_check, 'do_scheduletime_check']) -
+        #                                         pd.to_datetime(load_df.loc[do_ind_check, 'do_scheduletime'])) / \
+        #                                         pd.to_timedelta(1, unit='h')
+        # neg_delta = load_df.loc[do_ind_check, 'dodelta'] < 0
+        # load_df.loc[do_ind_check & neg_delta, 'pu_scheduletime_check'] = pd.to_datetime(
+        #     load_df.loc[do_ind_check & neg_delta, 'pu_scheduletime_check']).values + pd.to_timedelta(
+        #     load_df.loc[do_ind_check & neg_delta, 'dodelta'], unit='h')
+        #
+        # load_df['PU_Date_new'] = pd.to_datetime(load_df['pu_scheduletime_check']).dt.normalize()
+        # pu_date_check = (pd.to_datetime(load_df['PU_Date_new']) - pd.to_datetime(load_df['LoadDate']))\
+        #                 / pd.to_timedelta(1, unit='h') < 0    # if less than loaddate
+        # if pu_date_check.any():
+        #     load_df['pu_scheduletime_check'] = \
+        #         pd.to_datetime(load_df['pu_scheduletime_check']) + pd.to_timedelta(1, unit='day')
+        #     load_df['do_scheduletime_check'] = \
+        #         pd.to_datetime(load_df['do_scheduletime_check']) + pd.to_timedelta(1, unit='day')
+
+        # load_df['travel_reset'] = (pd.to_datetime(load_df['do_scheduletime_check']) - pd.to_datetime(
+        #     load_df['pu_scheduletime_check'])) / pd.to_timedelta(1, unit='h')
+        # travel_ind = load_df['travel_reset'] < load_df['Transit']
+        # load_df.loc[travel_ind, 'DO_Date'] = load_df.loc[travel_ind, 'DO_Date'] + pd.to_timedelta(1, unit='day')
+
         load_df['pu_scheduletime'] = load_df['pu_scheduletime_check'].copy()
         load_df['do_scheduletime'] = load_df['do_scheduletime_check'].copy()
+
+    if pu_ind_check.any() or do_ind_check.any():
         load_df = dup_check(load_df)
 
     if (pu_ind_check.any() or do_ind_check.any()) and ite < 5:
@@ -124,6 +147,8 @@ def check_hours(load_df, facility_df, ite=0):
         dodate_change_ind = ((load_df['DO_Date_new'] != load_df['DO_Date']).any())
         if pudate_change_ind.any() or dodate_change_ind.any():
             load_df = check_opendate(load_df, facility_df)
+        else:
+            load_df = join_facility(load_df, facility_df)
         load_df = check_hours(load_df, facility_df, ite=ite + 1)
     return load_df.reset_index(drop=True)
 

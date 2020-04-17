@@ -12,55 +12,78 @@ LOGGER = logging.getLogger(__name__)
 
 
 def schedule_hour_stop(df):
-    agg_df = df.groupby(['LoadID', 'PU_Facility', 'DO_Facility', 'PU_Bucket', 'DO_Bucket'], as_index=False) \
-        .agg({'histloadID': 'size', 'similarity': 'median', 'PU_Hour': 'mean', 'DO_Hour': 'mean', 'Transit': 'median',
-              'Dwell': 'median'})\
-        .rename(columns={'histloadID': 'count'})
-    agg_df_sort = agg_df.sort_values(by=['PU_Facility', 'DO_Facility', 'LoadID', 'similarity', 'count', 'Dwell'],
-                                     ascending=[True, True, True, False, False, True]).reset_index(drop=True)
-    df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
-    hour_df = agg_df_sort.loc[df_rank == 0]  # select best time window
+    if df.shape[0] > 1:
+        agg_df = df.groupby(['LoadID', 'PU_Facility', 'DO_Facility', 'PU_Bucket', 'DO_Bucket'], as_index=False) \
+            .agg({'histloadID': 'size', 'similarity': 'median', 'PU_Hour': 'mean', 'DO_Hour': 'mean', 'Transit': 'median',
+                  'Dwell': 'median'})\
+            .rename(columns={'histloadID': 'count'})
+        agg_df_sort = agg_df.sort_values(by=['PU_Facility', 'DO_Facility', 'LoadID', 'similarity', 'count', 'Dwell'],
+                                         ascending=[True, True, True, False, False, True]).reset_index(drop=True)
+        df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
+        hour_df = agg_df_sort.loc[df_rank == 0]  # select best time window
+    else:
+        hour_df = df[['LoadID', 'PU_Facility', 'DO_Facility', 'PU_Bucket', 'DO_Bucket',
+                      'similarity', 'PU_Hour', 'DO_Hour', 'Transit', 'Dwell']].copy()
+        hour_df['count'] = 1
     return hour_df
 
 
 def schedule_hour_area(df):
-    agg_df = df.groupby(['LoadID', 'OriginCluster', 'DestCluster', 'PU_Bucket', 'DO_Bucket'], as_index=False) \
-        .agg({'histloadID': 'size', 'similarity': 'median', 'PU_Hour': 'mean', 'DO_Hour': 'mean', 'Transit': 'median',
-              'Dwell': 'median'}) \
-        .rename(columns={'histloadID': 'count'})
-    agg_df_sort = agg_df.sort_values(by=['LoadID','similarity',  'count', 'Dwell'],
-                                     ascending=[True, False, False, True]).reset_index(drop=True)
-    df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
-    hour_df = agg_df_sort.loc[df_rank == 0]
+    if df.shape[0] > 1:
+        agg_df = df.groupby(['LoadID', 'OriginCluster', 'DestCluster', 'PU_Bucket', 'DO_Bucket'], as_index=False) \
+            .agg({'histloadID': 'size', 'similarity': 'median', 'PU_Hour': 'mean', 'DO_Hour': 'mean', 'Transit': 'median',
+                  'Dwell': 'median'}) \
+            .rename(columns={'histloadID': 'count'})
+        agg_df_sort = agg_df.sort_values(by=['LoadID','similarity',  'count', 'Dwell'],
+                                         ascending=[True, False, False, True]).reset_index(drop=True)
+        df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
+        hour_df = agg_df_sort.loc[df_rank == 0]
+    else:
+        hour_df = df[['LoadID', 'OriginCluster', 'DestCluster', 'PU_Bucket', 'DO_Bucket',
+                      'similarity', 'PU_Hour', 'DO_Hour', 'Transit', 'Dwell']].copy()
+        hour_df['count'] = 1
     return hour_df
 
 
 def cal_dwell(df):
-    df['weightDwell'] = df['similarity'].values * df['Dwell'].values
-    agg_df = df.groupby(['LoadID', 'PU_Facility', 'PU_Bucket'], as_index=False) \
-        .agg({'histloadID': 'size', 'similarity': ['median', 'sum'], 'PU_Hour': 'mean', 'Dwell': 'mean', 'weightDwell': 'sum'})
+    if df.shape[0] > 0:
+        df['weightDwell'] = df['similarity'].values * df['Dwell'].values
+        agg_df = df.groupby(['LoadID', 'PU_Facility', 'PU_Bucket'], as_index=False) \
+            .agg({'histloadID': 'size', 'similarity': ['median', 'sum'], 'PU_Hour': 'mean', 'Dwell': 'mean', 'weightDwell': 'sum'})
 
-    agg_df.columns = ['LoadID', 'PU_Facility', 'PU_Bucket', 'count', 'sim_median', 'sim_sum', 'PU_Hour', 'Dwell', 'weightDwell']
-    select_agg_df = agg_df.loc[(agg_df['count'] >= 3) & (agg_df['Dwell'].values <= 600) & (agg_df['Dwell'].values > 0)]
-    select_agg_df['Dwell_est'] = np.where(select_agg_df['sim_median'].values > 0.9, select_agg_df['Dwell'].values,
-                                          select_agg_df['weightDwell'].values / select_agg_df['sim_sum'].values)
-    # agg_df_sort = select_agg_df.sort_values(by=['LoadID', 'count', 'sim_median'], ascending=False).reset_index(drop=True)
-    # df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
-    # dwell_df = agg_df_sort[df_rank <= 3]
+        agg_df.columns = ['LoadID', 'PU_Facility', 'PU_Bucket', 'count', 'sim_median', 'sim_sum', 'PU_Hour', 'Dwell', 'weightDwell']
+        select_agg_df = agg_df.loc[(agg_df['count'] >= 3) & (agg_df['Dwell'].values <= 600) & (agg_df['Dwell'].values > 0)]
+        select_agg_df['Dwell_est'] = np.where(select_agg_df['sim_median'].values > 0.9, select_agg_df['Dwell'].values,
+                                              select_agg_df['weightDwell'].values / select_agg_df['sim_sum'].values)
+        # agg_df_sort = select_agg_df.sort_values(by=['LoadID', 'count', 'sim_median'], ascending=False).reset_index(drop=True)
+        # df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
+        # dwell_df = agg_df_sort[df_rank <= 3]
+    else:
+        select_agg_df = df[['LoadID', 'PU_Facility', 'PU_Bucket', 'similarity', 'PU_Hour', 'Dwell']].copy()
+        select_agg_df.rename(columns={'similarity': 'sim_median'}, inplace=True)
+        select_agg_df['count'] = 1
+        select_agg_df['sim_sum'] = select_agg_df['sim_median']
+        select_agg_df['weightDwell'] = select_agg_df['Dwell']
     return select_agg_df
 
 
 def cal_transit(df):
-    df['weightTransit'] = df['similarity'].values * df['Transit'].values
-    agg_df = df.groupby(['LoadID', 'OriginCluster', 'DestCluster'], as_index=False)\
-        .agg({'histloadID': 'size', 'similarity': ['median', 'sum'], 'Transit': 'mean', 'weightTransit': 'sum'})
-    agg_df.columns = ['LoadID', 'OriginCluster', 'DestCluster', 'count', 'sim_median', 'sim_sum', 'Transit', 'weightTransit']
-    select_agg_df = agg_df.loc[(agg_df['count'] >= 3) & (agg_df['Transit'] >= 0)]
-    select_agg_df['Travel_est'] = np.where(select_agg_df['sim_median'].values > 0.9, select_agg_df['Transit'].values,
-                                           select_agg_df['weightTransit'].values / select_agg_df['sim_sum'].values)
-    # agg_df_sort = select_agg_df.sort_values(by=['LoadID', 'count', 'sim_median'], ascending=False).reset_index(drop=True)
-    # df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
-    # transit_df = select_agg_df[df_rank <= 3]
+    if df.shape[0] > 0:
+        df['weightTransit'] = df['similarity'].values * df['Transit'].values
+        agg_df = df.groupby(['LoadID', 'OriginCluster', 'DestCluster'], as_index=False)\
+            .agg({'histloadID': 'size', 'similarity': ['median', 'sum'], 'Transit': 'mean', 'weightTransit': 'sum'})
+        agg_df.columns = ['LoadID', 'OriginCluster', 'DestCluster', 'count', 'sim_median', 'sim_sum', 'Transit', 'weightTransit']
+        select_agg_df = agg_df.loc[(agg_df['count'] >= 3) & (agg_df['Transit'] >= 0)]
+        select_agg_df['Travel_est'] = np.where(select_agg_df['sim_median'].values > 0.9, select_agg_df['Transit'].values,
+                                               select_agg_df['weightTransit'].values / select_agg_df['sim_sum'].values)
+        # agg_df_sort = select_agg_df.sort_values(by=['LoadID', 'count', 'sim_median'], ascending=False).reset_index(drop=True)
+        # df_rank = agg_df_sort.groupby(['LoadID']).cumcount()
+        # transit_df = select_agg_df[df_rank <= 3]
+    else:
+        select_agg_df = df[['LoadID', 'OriginCluster', 'DestCluster', 'similarity', 'Transit']].copy()
+        select_agg_df.rename(columns={'similarity': 'sim_median'}, inplace=True)
+        select_agg_df['sim_sum'] = select_agg_df['sim_median']
+        select_agg_df['weightTransit'] = select_agg_df['Transit']
     return select_agg_df
 
 

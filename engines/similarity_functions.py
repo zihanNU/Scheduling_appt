@@ -55,17 +55,30 @@ def similarity_check(newloads_df, histloads_df):
 
     if joinAll_df.shape[0] > 0:  # Type A
         facility_hour_all_df = similarity_cal_all(joinAll_df)
+    else:
+        column_names = ['LoadID', 'histloadID', 'similarity', 'PU_Facility', 'PU_Hour',
+         'PU_Bucket','DO_Facility', 'DO_Hour', 'DO_Bucket', 'Transit', 'Dwell']
+        facility_hour_all_df = pd.DataFrame(columns=column_names)
 
     if joinOrig_df.shape[0] > 0:
         facility_dwell_df = similarity_cal_dwell(joinOrig_df)
-
-    # if joinDest_df.shape[0] > 0:
-    #     facility_dwell_df = similarity_cal_dwell(joinDest_df)
+    else:
+        column_names = ['LoadID', 'histloadID', 'similarity', 'PU_Facility',
+              'PU_Hour', 'PU_Bucket', 'Dwell']
+        facility_dwell_df = pd.DataFrame(columns=column_names)
 
     if joinArea_df.shape[0] > 0:
         facility_travel_df = similarity_cal_travel(joinArea_df)
 
         facility_area_df = similarity_cal_area(joinArea_df)
+    else:
+        col_travel = ['LoadID', 'histloadID', 'similarity', 'OriginCluster',
+              'DestCluster', 'Transit']
+        col_area = ['LoadID', 'histloadID', 'similarity', 'OriginCluster', 'DestCluster',
+              'PU_Hour', 'PU_Bucket', 'DO_Hour', 'DO_Bucket',
+              'Dwell', 'Transit']
+        facility_travel_df = pd.DataFrame(columns=col_travel)
+        facility_area_df = pd.DataFrame(columns=col_area)
 
     dict_all = {'facility_hour_all_df': facility_hour_all_df,
                 'facility_dwell_df': facility_dwell_df,

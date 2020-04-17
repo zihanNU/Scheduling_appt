@@ -6,8 +6,11 @@ def scheduler_spread(df):
     '''
     We had up to 3 options for each load.
     For those busy facility, we need to spread the appt time in same/different buckets
+
+    We need to set the date first. The pu date is loaddate, and do date needs to verify with the travel time
     '''
 
+    speed_base = 45
     features = ['LoadID', 'Miles',  'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt', 'pu_scheduletime',
                 'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime', 'PUOffset', 'DOOffset',
                 'transit', 'dwelltime']
@@ -31,7 +34,10 @@ def scheduler_spread(df):
     buffer = 1
     df_rank_pu = df.groupby(['LoadDate', 'PU_Facility', 'PU_Bucket']).cumcount()
     df_rank_do = df.groupby(['LoadDate', 'DO_Facility', 'DO_Bucket']).cumcount()
-
+    df['dwell_est'] = 2
+    df['travel_est'] = df['Miles'].values / speed_base
+    df['resttime_est'] = np.int32(df['travel_est'].values / 10) * 10 + np.int32(df['travel_est'].values / 4)
+    df['transit_est'] = df['travel_est'] + df['resttime_est']
     df['pu_ranking'] = df_rank_pu
     df['do_ranking'] = df_rank_do
     pu_schedule_max = df.groupby(['LoadDate', 'PU_Facility', 'PU_Bucket']).agg({'pu_ranking': 'max'}).rename(
@@ -55,17 +61,20 @@ def scheduler_spread(df):
                                                                bucket[str(x['DO_Bucket']) + '-' + str(x['do_ranking'])], axis=1)
 
     df['pu_scheduletime'] = pd.to_datetime(df['LoadDate']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
-    df['DO_Appt_est'] = df['pu_scheduletime'] + pd.to_timedelta((df['Transit'] + df['Dwell']
+
+    df['DO_Appt_est'] = df['pu_scheduletime'] + pd.to_timedelta((df['transit_est'] + df['dwell_est']
                                                                  - df['PUOffset'].values + df['DOOffset'].values
                                                                  + buffer), unit='h')
-
     df['DO_Date'] = df['DO_Appt_est'].dt.normalize()
-
     df['DO_hour_est'] = df['DO_Appt_est'].dt.hour
-
     do_diffind = (np.abs(df['do_schedulehour'] - df['DO_hour_est']) >= 3) & (df['count'] < 3)
     df.loc[do_diffind, 'do_schedulehour'] = np.int32(df.loc[do_diffind, 'DO_hour_est']/0.5) * 0.5
 
+    # calculate if the reset make the hour eariler and no enough travel time there, set the date to date + 1
+    df['do_scheduletime'] = pd.to_datetime(df['DO_Date']) + pd.to_timedelta(df['do_schedulehour'], unit='h')
+    df['travel_reset'] = (pd.to_datetime(df['do_scheduletime']) - pd.to_datetime(df['pu_scheduletime']))/pd.to_timedelta(1, unit='h')
+    travel_ind = df['travel_reset'] < df['travel_est']
+    df.loc[travel_ind, 'DO_Date'] = df.loc[travel_ind, 'DO_Date'] + pd.to_timedelta(1, unit='day')
 
 # check dup in spread hour
     dup_puind = df.groupby(['LoadDate', 'PU_Facility', 'pu_schedulehour']).cumcount()

@@ -128,6 +128,8 @@ def process_liveloads(df, city_df, cluster_df):
     do_type1_ind = newloads_df['DO_ScheduleType'].values == 1
     do_nan_ind = newloads_df['DO_Appt'].isna()
     newloads_select_df = newloads_df.loc[(pu_type1_ind & pu_nan_ind) | (do_type1_ind & do_nan_ind)]
+    newloads_select_df.drop_duplicates(inplace=True)
+
     return newloads_select_df.reset_index(drop=True)
 
 
@@ -177,6 +179,7 @@ def process_histloads(df, city_df, cluster_df):
     # hour_bucket = [0, 5, 8, 11, 14, 18, 21, 25]
     # df['PU_Bucket'] = pd.cut(df['PU_Hour'], bins=hour_bucket).cat.codes
     # df['DO_Bucket'] = pd.cut(df['DO_Hour'], bins=hour_bucket).cat.codes
+    df.drop_duplicates(inplace=True)
     return df
 
 
