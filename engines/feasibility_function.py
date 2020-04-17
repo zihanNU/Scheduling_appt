@@ -40,6 +40,8 @@ def check_opendate(load_df, facility_df):
 def check_hours(load_df, facility_df, ite=0):
     ## Assume all loads are not in close date
 
+    buffer = 1
+
     do_ind = load_df['DO_ScheduleType'].values == 1 & load_df['DO_Appt'].isna()
     pu_ind = load_df['PU_ScheduleType'].values == 1 & load_df['PU_Appt'].isna()
 
@@ -94,7 +96,7 @@ def check_hours(load_df, facility_df, ite=0):
                                   load_df['DO_Date']) / pd.to_timedelta(1, unit='h')
     arrive_early_ind = (load_df['DOopen'].values > load_df['do_schedulehour'].values + 0.01) & \
                        (load_df['DOopen'].values <= load_df['DOclose'].values)
-    arrive_late_ind = (load_df['DOclose'].values <= load_df['do_schedulehour'].values) & \
+    arrive_late_ind = (load_df['DOclose'].values < load_df['do_schedulehour'].values) & \
                       (load_df['DOopen'].values <= load_df['DOclose'].values)  # arrive too late
     arrive_mid_ind = (load_df['DOclose'].values > load_df['do_schedulehour'].values) & \
                      (load_df['DOopen'].values > load_df['DOclose'].values)  # arrive too early  for close time
@@ -108,8 +110,20 @@ def check_hours(load_df, facility_df, ite=0):
         if do_earlyind.any():
             load_df.loc[do_earlyind, 'do_schedulehour'] = load_df.loc[do_earlyind, 'DOopen'] # set a little late
         if do_lateind.any():
-            load_df.loc[do_lateind, 'do_schedulehour'] = load_df.loc[do_lateind, 'DOopen']  # set a little late nextday
-            load_df.loc[do_lateind, 'DO_Date'] = load_df.loc[do_lateind, 'DO_Date'] + pd.to_timedelta(1, unit='day')
+            # if it is still feasible, then set to the same day, close time, otherwise, the next day
+            do_settoclose = pd.to_datetime(load_df.loc[do_lateind, 'DO_Date']) + \
+                          pd.to_timedelta(load_df.loc[do_lateind, 'DOclose'], unit='h')
+            travel = (pd.to_datetime(do_settoclose) - pd.to_datetime(load_df.loc[do_lateind, 'pu_scheduletime']))\
+                     / pd.to_timedelta(1, unit='h')
+            travel_org = (load_df.loc[do_lateind, 'transit'] + load_df.loc[do_lateind, 'dwelltime'] \
+                        + load_df.loc[do_lateind, 'DOOffset'] - load_df.loc[do_lateind, 'PUOffset'] + buffer)
+            travel_ind = (travel >= travel_org * 0.9)
+            # set to same day
+            load_df.loc[do_lateind & travel_ind, 'do_schedulehour'] = load_df.loc[do_lateind & travel_ind, 'DOclose']
+            # set a little late nextday
+            load_df.loc[do_lateind & ~travel_ind, 'do_schedulehour'] = load_df.loc[do_lateind & ~travel_ind, 'DOopen']
+            load_df.loc[do_lateind & ~travel_ind, 'DO_Date'] = load_df.loc[do_lateind & ~travel_ind, 'DO_Date']\
+                                                               + pd.to_timedelta(1, unit='day')
         if do_midind.any():
             load_df.loc[do_midind, 'do_schedulehour'] = load_df.loc[do_midind, 'DOopen']  # set a little late
 
