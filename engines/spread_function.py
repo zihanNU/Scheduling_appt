@@ -11,6 +11,7 @@ def scheduler_spread(df):
     '''
 
     speed_base = 45
+    buffer = 1
     features = ['LoadID', 'Miles',  'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt', 'pu_scheduletime',
                 'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime', 'PUOffset', 'DOOffset',
                 'transit', 'dwelltime']
@@ -31,7 +32,6 @@ def scheduler_spread(df):
               '50-0': 22.0, '50-1': 22.5, '50-2': 21.0, '50-3': 21.5, '50-4': 23.0, '50-5': 23.5,
               '50-6': 22.25, '50-7': 22.75, '50-8': 21.25, '50-9': 21.75, '50-10': 23.25, '50-11': 23.75
               }
-    buffer = 1
     df_rank_pu = df.groupby(['LoadDate', 'PU_Facility', 'PU_Bucket']).cumcount()
     df_rank_do = df.groupby(['LoadDate', 'DO_Facility', 'DO_Bucket']).cumcount()
     df['dwell_est'] = 2
@@ -40,6 +40,9 @@ def scheduler_spread(df):
     df['transit_est'] = df['travel_est'] + df['resttime_est']
     df['pu_ranking'] = df_rank_pu
     df['do_ranking'] = df_rank_do
+    pu_sche_ind = (df['PU_ScheduleType'] == 1) & (df['PU_Appt'].isna())
+    do_sche_ind = (df['DO_ScheduleType'] == 1) & (df['DO_Appt'].isna())
+
     pu_schedule_max = df.groupby(['LoadDate', 'PU_Facility', 'PU_Bucket']).agg({'pu_ranking': 'max'}).rename(
         columns={'pu_ranking': 'pu_ranking_max'})
     do_schedule_max = df.groupby(['LoadDate', 'DO_Facility', 'DO_Bucket']).agg({'do_ranking': 'max'}).rename(
@@ -48,16 +51,18 @@ def scheduler_spread(df):
     df = df.merge(do_schedule_max, on=['LoadDate', 'DO_Facility', 'DO_Bucket'], how='left')
     df['pu_schedulehour'] = np.nan
     df['do_schedulehour'] = np.nan
+    df.loc[pd.notna(df['PU_Appt']), 'pu_schedulehour'] = pd.to_datetime(df.loc[pd.notna(df['PU_Appt']),'PU_Appt']).dt.hour
+    df.loc[pd.notna(df['DO_Appt']), 'do_schedulehour'] = pd.to_datetime(df.loc[pd.notna(df['PU_Appt']),'PU_Appt']).dt.hour
 
-    pu_ind = df['pu_ranking_max'].values == 0
-    do_ind = df['do_ranking_max'].values == 0
+    pu_max_ind = df['pu_ranking_max'].values == 0
+    do_max_ind = df['do_ranking_max'].values == 0
 
-    df.loc[pu_ind, 'pu_schedulehour'] = np.int32(df.loc[pu_ind, 'PU_Hour']/0.5)*0.5
-    df.loc[do_ind, 'do_schedulehour'] = np.int32(df.loc[do_ind, 'DO_Hour']/0.5)*0.5
+    df.loc[pu_max_ind & pu_sche_ind, 'pu_schedulehour'] = np.int32(df.loc[pu_max_ind & pu_sche_ind, 'PU_Hour']/0.5)*0.5
+    df.loc[do_max_ind & do_sche_ind, 'do_schedulehour'] = np.int32(df.loc[do_max_ind & do_sche_ind, 'DO_Hour']/0.5)*0.5
 
-    df.loc[~pu_ind, 'pu_schedulehour'] = df.loc[~pu_ind].apply(lambda x:
+    df.loc[(~pu_max_ind) & pu_sche_ind, 'pu_schedulehour'] = df.loc[(~pu_max_ind) & pu_sche_ind].apply(lambda x:
                                                                bucket[str(x['PU_Bucket']) + '-' + str(x['pu_ranking'])], axis=1)
-    df.loc[~do_ind, 'do_schedulehour'] = df.loc[~do_ind].apply(lambda x:
+    df.loc[(~do_max_ind) & do_sche_ind, 'do_schedulehour'] = df.loc[(~do_max_ind) & do_sche_ind].apply(lambda x:
                                                                bucket[str(x['DO_Bucket']) + '-' + str(x['do_ranking'])], axis=1)
 
     df['pu_scheduletime'] = pd.to_datetime(df['LoadDate']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
@@ -68,32 +73,31 @@ def scheduler_spread(df):
     df['DO_Date'] = df['DO_Appt_est'].dt.normalize()
     df['DO_hour_est'] = df['DO_Appt_est'].dt.hour
     do_diffind = (np.abs(df['do_schedulehour'] - df['DO_hour_est']) >= 3) & (df['count'] < 3)
-    df.loc[do_diffind, 'do_schedulehour'] = np.int32(df.loc[do_diffind, 'DO_hour_est']/0.5) * 0.5
+    df.loc[do_diffind & do_sche_ind, 'do_schedulehour'] = np.int32(df.loc[do_diffind & do_sche_ind, 'DO_hour_est']/0.5) * 0.5
 
     # calculate if the reset make the hour eariler and no enough travel time there, set the date to date + 1
     df['do_scheduletime'] = pd.to_datetime(df['DO_Date']) + pd.to_timedelta(df['do_schedulehour'], unit='h')
     df['travel_reset'] = (pd.to_datetime(df['do_scheduletime']) - pd.to_datetime(df['pu_scheduletime']))/pd.to_timedelta(1, unit='h')
     travel_ind = df['travel_reset'] < df['travel_est']
-    df.loc[travel_ind, 'DO_Date'] = df.loc[travel_ind, 'DO_Date'] + pd.to_timedelta(1, unit='day')
+    df.loc[travel_ind & do_sche_ind, 'DO_Date'] = df.loc[travel_ind & do_sche_ind, 'DO_Date'] + pd.to_timedelta(1, unit='day')
 
 # check dup in spread hour
     dup_puind = df.groupby(['LoadDate', 'PU_Facility', 'pu_schedulehour']).cumcount()
-    pu_ind = df['PU_ScheduleType'] == 1
     if dup_puind.max():
-        df.loc[(dup_puind == 1) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 1) & pu_ind, 'pu_schedulehour'] + 0.5
-        df.loc[(dup_puind == 2) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 2) & pu_ind, 'pu_schedulehour'] - 0.5
-        df.loc[(dup_puind == 3) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 3) & pu_ind, 'pu_schedulehour'] + 0.25
-        df.loc[(dup_puind == 4) & pu_ind, 'do_schedulehour'] = df.loc[(dup_puind == 4) & pu_ind, 'pu_schedulehour'] + 0.75
+        df.loc[(dup_puind == 1) & pu_sche_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 1) & pu_sche_ind, 'pu_schedulehour'] + 0.5
+        df.loc[(dup_puind == 2) & pu_sche_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 2) & pu_sche_ind, 'pu_schedulehour'] - 0.5
+        df.loc[(dup_puind == 3) & pu_sche_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 3) & pu_sche_ind, 'pu_schedulehour'] + 0.25
+        df.loc[(dup_puind == 4) & pu_sche_ind, 'do_schedulehour'] = df.loc[(dup_puind == 4) & pu_sche_ind, 'pu_schedulehour'] + 0.75
     df['pu_scheduletime'] = pd.to_datetime(df['LoadDate']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
 
     dup_doind = df.groupby(['DO_Date', 'DO_Facility', 'do_schedulehour']).cumcount()
-    do_ind = df['DO_ScheduleType'] == 1
 
     if dup_doind.max():
-        df.loc[(dup_doind == 1) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 1) & do_ind, 'do_schedulehour'] + 0.5
-        df.loc[(dup_doind == 2) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 2) & do_ind, 'do_schedulehour'] - 0.5
-        df.loc[(dup_doind == 3) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 3) & do_ind, 'do_schedulehour'] + 0.25
-        df.loc[(dup_doind == 4) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 4) & do_ind, 'do_schedulehour'] + 0.75
+        df.loc[(dup_doind == 1) & do_sche_ind, 'do_schedulehour'] = df.loc[(dup_doind == 1) & do_sche_ind, 'do_schedulehour'] + 0.5
+        df.loc[(dup_doind == 2) & do_sche_ind, 'do_schedulehour'] = df.loc[(dup_doind == 2) & do_sche_ind, 'do_schedulehour'] - 0.5
+        df.loc[(dup_doind == 3) & do_sche_ind, 'do_schedulehour'] = df.loc[(dup_doind == 3) & do_sche_ind, 'do_schedulehour'] + 0.25
+        df.loc[(dup_doind == 4) & do_sche_ind, 'do_schedulehour'] = df.loc[(dup_doind == 4) & do_sche_ind, 'do_schedulehour'] + 0.75
     df['do_scheduletime'] = pd.to_datetime(df['DO_Date']) + pd.to_timedelta(df['do_schedulehour'], unit='h')
     df.rename(columns={'Transit': 'transit', 'Dwell': 'dwelltime'}, inplace=True)
+
     return df[features]
