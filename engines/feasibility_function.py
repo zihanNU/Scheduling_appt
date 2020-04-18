@@ -249,24 +249,31 @@ def dup_check(df):
     df.reset_index(drop=True, inplace=True)
     dup_doind = df.groupby(['DO_Date', 'DO_Facility', 'do_scheduletime']).cumcount()
     do_ind = df['DO_ScheduleType'] == 1
+    flag = 0
     if dup_doind.max():
+    #while dup_doind.max() and flag < 3:
         df.loc[(dup_doind == 1) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 1) & do_ind, 'do_schedulehour'] + 0.5
         df.loc[(dup_doind == 2) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 2) & do_ind, 'do_schedulehour'] + 0.25
         df.loc[(dup_doind == 3) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 3) & do_ind, 'do_schedulehour'] - 0.25
         df.loc[(dup_doind == 4) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 4) & do_ind, 'do_schedulehour'] - 0.5
         df.loc[(dup_doind == 5) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 5) & do_ind, 'do_schedulehour'] + 0.75
-
+        dup_doind = df.groupby(['DO_Date', 'DO_Facility', 'do_scheduletime']).cumcount()
+        flag += 1
 
     df['do_scheduletime'] = pd.to_datetime(df['DO_Date']) + pd.to_timedelta(df['do_schedulehour'], unit='h')
 
     dup_puind = df.groupby(['PU_Date', 'PU_Facility', 'pu_scheduletime']).cumcount()
     pu_ind = df['PU_ScheduleType'] == 1
-    if dup_doind.max():
+    flag = 0
+    if dup_puind.max():
+    #while dup_puind.max() and flag < 3:
         df.loc[(dup_puind == 1) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 1) & pu_ind, 'pu_schedulehour'] + 0.5
         df.loc[(dup_puind == 2) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 2) & pu_ind, 'pu_schedulehour'] + 0.25
         df.loc[(dup_puind == 3) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 3) & pu_ind, 'pu_schedulehour'] - 0.25
-        df.loc[(dup_doind == 4) & pu_ind, 'do_schedulehour'] = df.loc[(dup_doind == 4) & pu_ind, 'do_schedulehour'] - 0.5
-        df.loc[(dup_doind == 5) & pu_ind, 'do_schedulehour'] = df.loc[(dup_doind == 5) & pu_ind, 'do_schedulehour'] + 0.75
+        df.loc[(dup_doind == 4) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_doind == 4) & pu_ind, 'pu_schedulehour'] - 0.5
+        df.loc[(dup_doind == 5) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_doind == 5) & pu_ind, 'pu_schedulehour'] + 0.75
+        dup_puind = df.groupby(['PU_Date', 'PU_Facility', 'pu_scheduletime']).cumcount()
+        flag += 1
 
     df['pu_scheduletime'] = pd.to_datetime(df['PU_Date']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
     LOGGER.info('Done check Duplicate schedule for same facility')
