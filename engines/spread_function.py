@@ -65,6 +65,12 @@ def scheduler_spread(df):
     df.loc[(~do_max_ind) & do_sche_ind, 'do_schedulehour'] = df.loc[(~do_max_ind) & do_sche_ind].apply(lambda x:
                                                                bucket[str(x['DO_Bucket']) + '-' + str(x['do_ranking'])], axis=1)
 
+    # fillna for those puappt is na but type 2 or 3, and doappt is type 1 and na.
+    pu_na_ind = df['pu_schedulehour'].isna()
+    df.loc[pu_na_ind, 'pu_schedulehour'] = np.int32(df.loc[pu_na_ind, 'PU_Hour'] / 0.5) * 0.5
+    do_na_ind = df['do_schedulehour'].isna()
+    df.loc[do_na_ind, 'do_schedulehour'] = np.int32(df.loc[do_na_ind, 'DO_Hour'] / 0.5) * 0.5
+
     df['pu_scheduletime'] = pd.to_datetime(df['LoadDate']) + pd.to_timedelta(df['pu_schedulehour'], unit='h')
 
     df['DO_Appt_est'] = df['pu_scheduletime'] + pd.to_timedelta((df['transit_est'] + df['dwell_est']

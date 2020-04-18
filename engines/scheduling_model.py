@@ -301,6 +301,9 @@ def scheduler_rule(newload_df, dwell_df, transit_df):  #Type B and C
     pu_newloaddf['PU_Date'] = pd.to_datetime(pu_newloaddf['pu_scheduletime']).dt.normalize()
     pu_newloaddf['pu_schedulehour'] = (pd.to_datetime(pu_newloaddf['pu_scheduletime'])
                                        - pu_newloaddf['PU_Date']) / pd.to_timedelta(1, unit='h')
+    # Reset pu date to loaddate. the time should be pu date + hour, and pu date should be >= loaddate
+    pu_newloaddf['pu_scheduletime'] = pd.to_datetime(pu_newloaddf['LoadDate']) + \
+                                      pd.to_timedelta(pu_newloaddf['pu_schedulehour'], unit='h')
 
     do_newloaddf['DO_Date'] = pd.to_datetime(do_newloaddf['do_scheduletime']).dt.normalize()
     do_newloaddf['do_schedulehour'] = (pd.to_datetime(do_newloaddf['do_scheduletime']) -
@@ -308,10 +311,10 @@ def scheduler_rule(newload_df, dwell_df, transit_df):  #Type B and C
 
     pu_newloaddf['pu_schedulehour'] = np.int32(pu_newloaddf['pu_schedulehour']/0.5) * 0.5
     do_newloaddf['do_schedulehour'] = np.int32(do_newloaddf['do_schedulehour']/0.5) * 0.5
-    pu_newloaddf['pu_scheduletime'] = pd.to_datetime(pu_newloaddf['PU_Date']) + pd.to_timedelta(pu_newloaddf['pu_schedulehour'], unit='h')
-    do_newloaddf['do_scheduletime'] = pd.to_datetime(do_newloaddf['DO_Date']) + pd.to_timedelta(do_newloaddf['do_schedulehour'], unit='h')
-
-
+    pu_newloaddf['pu_scheduletime'] = pd.to_datetime(pu_newloaddf['LoadDate']) \
+                                      + pd.to_timedelta(pu_newloaddf['pu_schedulehour'], unit='h')
+    do_newloaddf['do_scheduletime'] = pd.to_datetime(do_newloaddf['DO_Date'])\
+                                      + pd.to_timedelta(do_newloaddf['do_schedulehour'], unit='h')
     features = ['LoadID', 'Miles', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt',
                  'pu_scheduletime', 'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'do_scheduletime', 'PUOffset', 'DOOffset',
                  'transit', 'dwelltime']
