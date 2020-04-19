@@ -171,8 +171,8 @@ def scheduler_model(newloads_df, histloads_df):
         facility_dwell_df = df_dict['facility_dwell_df']
         facility_travel_df = df_dict['facility_travel_df']
         dwell_df = cal_dwell(facility_dwell_df)
-        transit_df = cal_transit(facility_travel_df)
-        facility_hour_TypeC = scheduler_rule(newload_part4, dwell_df, transit_df)
+        #transit_df = cal_transit(facility_travel_df)
+        facility_hour_TypeC = scheduler_rule(newload_part4, dwell_df)
     else:
         facility_hour_TypeC = pd.DataFrame(columns=features2)
     LOGGER.info('Finish rule based into modeling')
@@ -261,7 +261,7 @@ def scheduler_newFac(newload_df):  #Type E
     return newload_df[features].reset_index(drop=True)
 
 
-def scheduler_rule(newload_df, dwell_df, transit_df):  #Type B and C
+def scheduler_rule(newload_df, dwell_df):  #Type B and C
     LOGGER.info('Start rule based scheduling')
     speed_base = 45
     newload_df['traveltime'] = newload_df['Miles'].values / speed_base
@@ -277,10 +277,11 @@ def scheduler_rule(newload_df, dwell_df, transit_df):  #Type B and C
     do_newloaddf['PU_Hour'] = pd.to_datetime(do_newloaddf['PU_Appt']).dt.hour
     do_newloaddf['PU_Bucket'] = pd.cut(do_newloaddf['PU_Hour'], bins=hour_bucket).cat.codes
 
-    do_newloaddf = do_newloaddf.merge(dwell_df[['LoadID', 'PU_Bucket', 'Dwell_est']],
-                                      on=['LoadID', 'PU_Bucket'], how='left')
-    do_newloaddf['Dwell_est'].fillna(2, inplace=True)
-    do_newloaddf['dwelltime'] = do_newloaddf['Dwell_est']
+    if dwell_df.shape[0]:
+        do_newloaddf = do_newloaddf.merge(dwell_df[['LoadID', 'PU_Bucket', 'Dwell_est']],
+                                          on=['LoadID', 'PU_Bucket'], how='left')
+        do_newloaddf['Dwell_est'].fillna(2, inplace=True)
+        do_newloaddf['dwelltime'] = do_newloaddf['Dwell_est']
 
     pu_newloaddf['pu_scheduletime'] = pd.NaT
     do_newloaddf['pu_scheduletime'] = pd.to_datetime(do_newloaddf['PU_Appt'])
@@ -296,7 +297,6 @@ def scheduler_rule(newload_df, dwell_df, transit_df):  #Type B and C
                                       pd.to_timedelta((pu_newloaddf['transit'].values + pu_newloaddf['dwelltime'].values
                                                       - pu_newloaddf['PUOffset'].values + pu_newloaddf['DOOffset'].values
                                                       + buffer), unit='h')
-
     ## Smoothing
     pu_newloaddf['PU_Date'] = pd.to_datetime(pu_newloaddf['pu_scheduletime']).dt.normalize()
     pu_newloaddf['pu_schedulehour'] = (pd.to_datetime(pu_newloaddf['pu_scheduletime'])

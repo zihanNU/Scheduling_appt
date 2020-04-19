@@ -47,11 +47,9 @@ def check_hours(load_df, facility_df, ite=0):
 
     do_ind = load_df['DO_ScheduleType'].values == 1 & load_df['DO_Appt'].isna()
     pu_ind = load_df['PU_ScheduleType'].values == 1 & load_df['PU_Appt'].isna()
+    pu_close_dwell = (load_df['PUclose'] < 23.5) & (load_df['PUclose'] > 0)
+    load_df.loc[pu_close_dwell, 'PUclose'] = load_df.loc[pu_close_dwell, 'PUclose'].values - 1.5  # minus 1.5 h for dwell time
 
-    load_df.loc[load_df['PUclose'] < 23.5, 'PUclose'] = load_df.loc[load_df[
-                                                                        'PUclose'] < 23.5, 'PUclose'] - 1.5  # minus 1.5 h for dwell time
-    load_df.loc[load_df['DOclose'] < 23.5, 'DOclose'] = load_df.loc[load_df[
-                                                                        'DOclose'] < 23.5, 'DOclose'] - 1.5  # minus 1.5 h for dwell time
     load_df['pu_scheduletime_check'] = load_df['pu_scheduletime'].values
     load_df['do_scheduletime_check'] = load_df['do_scheduletime'].values
     load_df['pudelta'] = 0
@@ -100,7 +98,11 @@ def check_hours(load_df, facility_df, ite=0):
         # Update [Do_Date] and join in case it may change, also update do open and close time
         load_df = join_facility(load_df, facility_df)
 
+
+
     ### Check for DO hours
+    do_close_dwell = (load_df['DOclose'] < 23.5) & (load_df['DOclose'] > 0)
+    load_df.loc[do_close_dwell, 'DOclose'] = load_df.loc[do_close_dwell, 'DOclose'].values - 1.5
     load_df['do_schedulehour'] = (pd.to_datetime(load_df['do_scheduletime']) -
                                   load_df['DO_Date']) / pd.to_timedelta(1, unit='h')
     arrive_early_ind = (load_df['DOopen'].values > load_df['do_schedulehour'].values + 0.01) & \
@@ -188,9 +190,8 @@ def check_hours(load_df, facility_df, ite=0):
 
 
 def join_facility(load_df, facility_df):
+    load_df.reset_index(drop=True, inplace=True)
     weekday_mapper = {0: 'Monday', 1: 'Tuesday', 2: 'Wednesday', 3: 'Thursday', 4: 'Friday', 5: 'Saturday', 6: 'Sunday'}
-    load_df['DO_DOW'] = -1
-
     load_df['pu_scheduletime'].fillna(load_df['PU_Appt'], inplace=True)
     load_df['do_scheduletime'].fillna(load_df['DO_Appt'], inplace=True)
     load_df['DO_DOW'] = pd.to_datetime(load_df['do_scheduletime']).dt.dayofweek
@@ -250,13 +251,13 @@ def dup_check(df):
     dup_doind = df.groupby(['DO_Date', 'DO_Facility', 'do_scheduletime']).cumcount()
     do_ind = df['DO_ScheduleType'] == 1
     flag = 0
-    if dup_doind.max():
-    #while dup_doind.max() and flag < 3:
-        df.loc[(dup_doind == 1) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 1) & do_ind, 'do_schedulehour'] + 0.5
-        df.loc[(dup_doind == 2) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 2) & do_ind, 'do_schedulehour'] + 0.25
-        df.loc[(dup_doind == 3) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 3) & do_ind, 'do_schedulehour'] - 0.25
-        df.loc[(dup_doind == 4) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 4) & do_ind, 'do_schedulehour'] - 0.5
-        df.loc[(dup_doind == 5) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 5) & do_ind, 'do_schedulehour'] + 0.75
+    while dup_doind.max() and flag < 5:
+        df.loc[(dup_doind == 1) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 1) & do_ind, 'do_schedulehour'] + 0.25
+        df.loc[(dup_doind == 2) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 2) & do_ind, 'do_schedulehour'] - 0.25
+        df.loc[(dup_doind == 3) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 3) & do_ind, 'do_schedulehour'] + 0.75
+        df.loc[(dup_doind == 4) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 4) & do_ind, 'do_schedulehour'] - 0.75
+        df.loc[(dup_doind == 5) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 5) & do_ind, 'do_schedulehour'] + 1.25
+        df.loc[(dup_doind == 6) & do_ind, 'do_schedulehour'] = df.loc[(dup_doind == 6) & do_ind, 'do_schedulehour'] - 1.25
         dup_doind = df.groupby(['DO_Date', 'DO_Facility', 'do_scheduletime']).cumcount()
         flag += 1
 
@@ -265,13 +266,13 @@ def dup_check(df):
     dup_puind = df.groupby(['PU_Date', 'PU_Facility', 'pu_scheduletime']).cumcount()
     pu_ind = df['PU_ScheduleType'] == 1
     flag = 0
-    if dup_puind.max():
-    #while dup_puind.max() and flag < 3:
-        df.loc[(dup_puind == 1) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 1) & pu_ind, 'pu_schedulehour'] + 0.5
-        df.loc[(dup_puind == 2) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 2) & pu_ind, 'pu_schedulehour'] + 0.25
-        df.loc[(dup_puind == 3) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 3) & pu_ind, 'pu_schedulehour'] - 0.25
-        df.loc[(dup_doind == 4) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_doind == 4) & pu_ind, 'pu_schedulehour'] - 0.5
-        df.loc[(dup_doind == 5) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_doind == 5) & pu_ind, 'pu_schedulehour'] + 0.75
+    while dup_puind.max() and flag < 5:
+        df.loc[(dup_puind == 1) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 1) & pu_ind, 'pu_schedulehour'] + 0.25
+        df.loc[(dup_puind == 2) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 2) & pu_ind, 'pu_schedulehour'] - 0.25
+        df.loc[(dup_puind == 3) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 3) & pu_ind, 'pu_schedulehour'] + 0.75
+        df.loc[(dup_puind == 4) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 4) & pu_ind, 'pu_schedulehour'] - 0.75
+        df.loc[(dup_puind == 5) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 5) & pu_ind, 'pu_schedulehour'] + 1.25
+        df.loc[(dup_puind == 6) & pu_ind, 'pu_schedulehour'] = df.loc[(dup_puind == 6) & pu_ind, 'pu_schedulehour'] - 1.25
         dup_puind = df.groupby(['PU_Date', 'PU_Facility', 'pu_scheduletime']).cumcount()
         flag += 1
 
