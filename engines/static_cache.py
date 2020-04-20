@@ -95,9 +95,9 @@ def build_pickle_offset_info():
                 lambda x: offset(x['TimeZone']), axis=1)
         cityinfo.to_pickle(
             os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl'))
+        return cityinfo
     except Exception as ex:
         LOGGER.exception("Exception while running get_cityinfo_initial(): {}".format(repr(ex)))
-    return cityinfo
 
 
 def build_pickle_cluster_info():
@@ -137,17 +137,17 @@ def build_pickle_hist_loads_df(city_df, cluster_df):
 
 def hist_cache():
     os.makedirs(CONFIG.MODEL_PATH, exist_ok=True)
-    #daily_update()
+    daily_update()
     LOGGER.info('Update Historical Data...')
     #### Initilizer Start#####
-    LOGGER.info('Cache facility data...')
-    build_pickle_facility_df
+
     LOGGER.info('Cache city data...')
     city_df = build_pickle_offset_info()
     cluster_df = build_pickle_cluster_info()
     LOGGER.info('Cache load history data...')
     build_pickle_hist_loads_df(city_df, cluster_df)
-
+    LOGGER.info('Cache facility data...')
+    build_pickle_facility_df()
     LOGGER.info("Successfully cached history")
 
 def main():

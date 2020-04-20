@@ -29,16 +29,15 @@ def assign_latlong_bycity(df,   city_df ):
                        'offset': 'DOOffset'}
 
         city_features = ['CityID', 'Latitude', 'Longitude', 'offset']
-        df = pd.merge(df, city_df[city_features], left_on=['PUCityID'], right_on=["CityID"], how='left')
+        df = pd.merge(df, city_df[city_features], left_on=['PU_City'], right_on=["CityID"], how='left')
         df = df.rename(columns=name_mapper_origin)
         df.drop(['CityID'], axis=1, inplace=True)
-        df = pd.merge(df, city_df[city_features], left_on=['DOCityID'], right_on=["CityID"], how='left')
+        df = pd.merge(df, city_df[city_features], left_on=['DO_City'], right_on=["CityID"], how='left')
         df.drop(['CityID'], axis=1, inplace=True)
         df = df.rename(columns=name_mapper_dest)
         return df
     except Exception as e:
         LOGGER.exception(('unexpected error variable passing: {0}'.format(e)))
-
 
 
 def encode_load(df, columnname):
@@ -77,10 +76,10 @@ def process_liveloads(df, city_df, cluster_df):
     df['PU_time'] = pd.to_datetime(df['PU_time'], errors='coerce')
     df['DO_time'] = pd.to_datetime(df['DO_time'], errors='coerce')
     df['UpdateDate'] = pd.to_datetime(df['UpdateDate'], errors='coerce')
-    df = pd.merge(df, cluster_df, left_on=["PUCityID"], right_on=["CityID"], how='left', copy=False)
+    df = pd.merge(df, cluster_df, left_on=["PU_City"], right_on=["CityID"], how='left', copy=False)
     df.drop(columns=['CityID'], inplace=True)
     df = df.rename(columns={'ClusterID': 'OriginClusterID'})
-    df = pd.merge(df, cluster_df, left_on=["DOCityID"], right_on=["CityID"], how='left', copy=False)
+    df = pd.merge(df, cluster_df, left_on=["DO_City"], right_on=["CityID"], how='left', copy=False)
     df.drop(columns=['CityID'], inplace=True)
     df = df.rename(columns={'ClusterID': 'DestinationClusterID'})
 
@@ -115,14 +114,14 @@ def process_liveloads(df, city_df, cluster_df):
     schedule_df.loc[do_ind, 'DO_Appt'] = schedule_df.loc[~do_ind, 'DO_appt_nonschedule']
 
     LOGGER.info('Preprocessing Live Data, Available loads...')
-    drop_features = ['StateID_x', 'StateID_y', 'offset_x', 'offset_y']
+    #drop_features = ['StateID_x', 'StateID_y', 'offset_x', 'offset_y']
     # ['LoadDate','PU_time','PU_ScheduleCloseTime','PU_appt_nonschedule',
     #                'DO_time','DO_ScheduleCloseTime','DO_appt_nonschedule'  ]
 
-    schedule_df.drop(drop_features, axis=1, inplace=True)
+    #schedule_df.drop(drop_features, axis=1, inplace=True)
     LOGGER.info('Loading Live Data End, Available loads...')
     newloads_df = assign_latlong_bycity(schedule_df, city_df)
-    newloads_df = encode_load(newloads_df, 'EquipmentType')
+    #newloads_df = encode_load(newloads_df, 'EquipmentType')
     pu_type1_ind = newloads_df['PU_ScheduleType'].values == 1
     pu_nan_ind = newloads_df['PU_Appt'].isna()
     do_type1_ind = newloads_df['DO_ScheduleType'].values == 1
@@ -196,6 +195,13 @@ def test_function():
 
     try:
         test_data = pd.read_csv(os.path.join(CONFIG.MODEL_PATH, 'test_data.csv'))
+        col_rename = {'PUCityID': 'PU_City', 'DOCityID': 'DO_City'}
+        test_data.rename(columns=col_rename, inplace=True)
+        columns = ['LoadID', 'LoadDate', 'Miles', 'TotalWeight', 'CustomerID', 'PU_Facility', 'PU_City',
+                   'PU_ScheduleType', 'PU_ScheduleCloseTime', 'PU_LoadByDate',
+                   'PU_time', 'DO_Facility', 'DO_City', 'DO_ScheduleType', 'DO_ScheduleCloseTime',
+                   'DO_LoadByDate', 'DO_time',	'UpdateDate']
+        test_data = test_data[columns]
         test_data_processed = process_liveloads(test_data, city_df, cluster_df)
         test_data_processed.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'test_data.pkl'))#, index=False)
         LOGGER.info('Test Data Processing Done')
@@ -211,4 +217,4 @@ def test_function():
         print('Train Data Processing Done')
     except Exception as e:
         LOGGER.exception(e)
-#test_function()
+test_function()

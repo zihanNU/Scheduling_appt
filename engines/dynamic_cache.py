@@ -19,8 +19,10 @@ def main():
         os.makedirs(CONFIG.MODEL_PATH)
     city_info = pd.read_pickle(
             os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl'))
+    cluster_info = pd.read_pickle(
+        os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_cluster_info.pkl'))
     newloads_df = QUERY.get_liveload()
-    loads_df = process_liveloads(newloads_df, city_info)
+    loads_df = process_liveloads(newloads_df, city_info, cluster_info)
     loads_df.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'live_bazooka_loads.pkl'))
     LOGGER.info('Loading Live Data Done...')
     return loads_df
@@ -35,6 +37,8 @@ def get_liveloads():
         os.makedirs(CONFIG.MODEL_PATH)
     city_info = pd.read_pickle(
             os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl'))
+    cluster_info = pd.read_pickle(
+        os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_cluster_info.pkl'))
     try:
         newloads_df = QUERY.get_liveload()
     except Exception as e:
@@ -44,11 +48,11 @@ def get_liveloads():
         loads_df = pd.read_pickle(load_file)
         updatedatetime = loads_df.UpdateDate.max()
         newloads_df = newloads_df.loc[newloads_df[updatedatetime] > updatedatetime]
-        loads_df_new = process_liveloads(newloads_df, city_info)
+        loads_df_new = process_liveloads(newloads_df, city_info, cluster_info)
         loads_df = pd.concat([loads_df, loads_df_new], axis=0)
         loads_df.reset_index(drop=True, inplace=True)
     else:
-        loads_df = process_liveloads(newloads_df, city_info)
+        loads_df = process_liveloads(newloads_df, city_info, cluster_info)
 
     loads_df.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'df_live_bazooka_loads_cf.pkl'))
     LOGGER.info('Loading Live Data Done...')

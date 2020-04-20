@@ -15,8 +15,9 @@ class QueryEngine():
 
     def __init__(self):
         self.connection_strings = {
-            "DB research science":            CONFIG.CONNECT_STR_RS,
-            "DB live connection":         CONFIG.CONNECT_STR_LIVE,
+            "DB research science":       CONFIG.CONNECT_STR_RS,
+            "DB data science":           CONFIG.CONNECT_STR_DS,
+            "DB live connection":        CONFIG.CONNECT_STR_LIVE,
         }
 
     def _df_from_sql_query(self, connection_string, sql_command):
@@ -62,7 +63,7 @@ class QueryEngine():
         return self._df_from_sql_query("DB research science", sql_command)
 
     def get_facility_initial(self):
-        return self._df_from_sql_query("DB research science", "EXEC [dbo].[FacilityHour]")
+        return self._df_from_sql_query("DB research science", "EXEC [dbo].[uspScheduling_FacilityHour]")
 
     def get_cityinfo_initial(self):
         return self._df_from_sql_query("DB research science", "EXEC [dbo].[uspScheduling_CityInfo]")
@@ -72,3 +73,6 @@ class QueryEngine():
             pd.Timestamp('today').to_period("D") # start date
         )
         return self._df_from_sql_query("DB research science", sql_command)
+
+    def get_cluster_initial(self):
+        return self._df_from_sql_query("DB data science", "EXEC [DataScience].[uspNOVA_ClusterInfo]")
