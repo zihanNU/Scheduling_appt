@@ -78,7 +78,7 @@ class Config(object):
 
     with open("logging.json", 'r') as f:
         LOGGING_CONFIG = json.load(f)
-    FNAME = 'config.log'
+    FNAME = 'Scheduling.'+ datetime.datetime.now().strftime('%Y-%m-%d')+'.log'
     LOGGING_CONFIG['handlers']['file_handler']['filename'] = os.path.join(LOG_PATH, FNAME)
 
     logging.config.dictConfig(LOGGING_CONFIG)
