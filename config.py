@@ -34,6 +34,7 @@ class Config(object):
     CONNECT_STR_LIVE = node.xpath('//add[@name="BazookaLiveConnectionString"]')[0].attrib['connectionString']
     CONNECT_STR_RS = node.xpath('//add[@name="ResearchScienceConnectionString"]')[0].attrib['connectionString']
     CONNECT_STR_ANLY = node.xpath('//add[@name="AnalyticsConnectionString"]')[0].attrib['connectionString']
+    CONNECT_STR_DS = node.xpath('//add[@name="DataScienceConnectionString"]')[0].attrib['connectionString']
 
 
 
