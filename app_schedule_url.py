@@ -54,7 +54,7 @@ def api_json_output(results_df):
         results_df['DO_ScheduleTime'] = results_df['DO_ScheduleTime'].apply(lambda x: x.strftime("%Y-%m-%d %R"))
         return results_df.to_dict('records'), status
 
-@app.route('/scheduleing_mimic/', methods=['GET'], strict_slashes=False)
+@app.route('/schedule_mimic/', methods=['GET'], strict_slashes=False)
 def scheduler():
     try:
         LOGGER.info("Start to Process for api at time {0}".format(datetime.datetime.now()))
@@ -93,8 +93,9 @@ try:
     # facility_hour_df = init_read_facility('facility_hour.pkl')
     # newloads_df = init_read_liveload('test_data.pkl')
     histloads_df = init_read_histload('train_data_processed_cv.csv')
-    facility_hour_df = init_read_facility('facility_hour.pkl')
-    newloads_df = init_read_liveload('test_data_processed_cv.csv')
+    facility_hour_df = init_read_facility('app_scheduler_facility_info.pkl')
+    newloads_df = get_liveloads()
+        #init_read_liveload('test_data_processed_cv.csv')
     LOGGER.info("*** System Ready for Requests ***")
 
 except Exception as e:

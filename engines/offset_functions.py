@@ -10,7 +10,7 @@ CONFIG = config.Config()
 
 utc = pytz.utc
 chicago_now = datetime.datetime.now(pytz.timezone(CONFIG.LOCALTIMEZONE))
-offset_chicago=chicago_now.utcoffset().total_seconds() / 60 / 60
+offset_chicago = chicago_now.utcoffset().total_seconds() / 60 / 60
 
 
 def offset(tz_name):
