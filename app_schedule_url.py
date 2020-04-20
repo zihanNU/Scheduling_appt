@@ -47,7 +47,7 @@ def api_json_output(results_df):
         status = 'no specific load detected'
         return [], status
     else:
-        results_df.sort_values(by=['PU_Facility', 'DO_Facility'], inplace=True)
+        results_df.sort_values(by=['LoadDate', 'PU_Facility', 'DO_Facility'], inplace=True)
         results_df.reset_index(drop=True, inplace=True)
         status = 'load scheduling done'
         results_df['PU_ScheduleTime'] = results_df['PU_ScheduleTime'].apply(lambda x: x.strftime("%Y-%m-%d %R"))
@@ -57,6 +57,7 @@ def api_json_output(results_df):
 @app.route('/scheduleing_mimic/', methods=['GET'], strict_slashes=False)
 def scheduler():
     try:
+        LOGGER.info("Start to Process for api at time {0}".format(datetime.datetime.now()))
         values = CaseInsensitiveDict(request.values.to_dict())
         loadID = values.get('LoadID', type=int, default=0)
         if loadID > 0:
@@ -73,11 +74,12 @@ def scheduler():
         api_features = ['LoadID', 'LoadDate', 'PU_Facility', 'PU_ScheduleTime', 'DO_Facility', 'DO_ScheduleTime']
         #scheduler_results_df[features].to_csv(os.path.join(CONFIG.MODEL_PATH, 'test_results_cv.csv'), index=False)
 
-        LOGGER.debug("END: Mimic Scheduling Process")
+        LOGGER.info("END: Mimic Scheduling Process")
 
         result_json, status = api_json_output(scheduler_results_df[api_features])
 
         return jsonify({'Loads': result_json, "Version": CONFIG.API_VERSION, "Status": status})
+        LOGGER.info("Finish to Process for api at time {0}".format(datetime.datetime.now()))
 
 
     except Exception as ex:
