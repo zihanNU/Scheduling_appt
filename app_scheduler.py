@@ -17,7 +17,7 @@ import datetime
 from engines.initialization import init_read_histload, init_read_facility, init_read_liveload
 from engines.query import QueryEngine
 from engines.scheduling_model import scheduler_model
-from engines.dataprocessing import process_liveloads
+from engines.dynamic_cache import get_liveloads
 from engines.spread_function import scheduler_spread
 from engines.feasibility_function import feasibility_check
 
@@ -53,7 +53,6 @@ if __name__ == '__main__':
     features = ['LoadID', 'Miles', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt', 'PU_Date',
                 'pu_scheduletime', 'pu_schedulehour',
                 'DO_Facility', 'DO_ScheduleType', 'DO_Appt', 'DO_Date', 'do_scheduletime', 'do_schedulehour']
-    scheduler_results_df = pd.DataFrame(columns=features)
     results_df1 = scheduler_spread(results_df1)  #after this step, reset the column names of df1 into df2.
     results_df = pd.concat([results_df1, results_df2], axis=0, ignore_index=True)
     features = ['LoadID', 'Miles', 'LoadDate', 'PU_Facility', 'PU_ScheduleType', 'PU_Appt',

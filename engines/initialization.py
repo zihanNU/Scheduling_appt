@@ -41,7 +41,7 @@ def init_read_liveload(filename):
         live_data = pd.DataFrame(columns=features)
         LOGGER.error("Cannot Find test_data File")
         LOGGER.exception(e)
-    return live_data#.loc[live_data['LoadID'].isin([17900690]), features]
+    return live_data.loc[live_data['LoadID'].isin([17481586, 17481590]), features]
 
 
 def init_read_facility(filename):

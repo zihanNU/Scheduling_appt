@@ -102,13 +102,13 @@ def process_liveloads(df, city_df, cluster_df):
     schedule_df['PU_DOW'] = df['LoadDate'].dt.dayofweek
     schedule_df['DO_DOW'] = df['DO_LoadByDate'].dt.dayofweek
 
-    schedule_df['PU_Appt'] = schedule_df['PU_ScheduleCloseTime']
+    schedule_df['PU_Appt'] = schedule_df['PU_ScheduleCloseTime'].values
     pu_ind = schedule_df['PU_ScheduleType'].values == 1
     pu_invalid = schedule_df['PU_ScheduleCloseTime'].values < schedule_df['LoadDate'].values
     schedule_df.loc[pu_ind & pu_invalid, 'PU_Appt'] = pd.NaT
     schedule_df.loc[~pu_ind, 'PU_Appt'] = schedule_df.loc[~pu_ind, 'PU_appt_nonschedule']
 
-    schedule_df['DO_Appt'] = schedule_df['DO_ScheduleCloseTime']
+    schedule_df['DO_Appt'] = schedule_df['DO_ScheduleCloseTime'].values
     do_ind = schedule_df['DO_ScheduleType'] == 1
     do_invalid = schedule_df['DO_ScheduleCloseTime'].values < schedule_df['LoadDate'].values
     schedule_df.loc[do_ind & do_invalid, 'DO_Appt'] = pd.NaT
@@ -197,7 +197,7 @@ def test_function():
     try:
         test_data = pd.read_csv(os.path.join(CONFIG.MODEL_PATH, 'test_data.csv'))
         test_data_processed = process_liveloads(test_data, city_df, cluster_df)
-        test_data_processed.to_csv(os.path.join(CONFIG.MODEL_PATH, 'test_data_processed_0408.csv'), index=False)
+        test_data_processed.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'test_data.pkl'))#, index=False)
         LOGGER.info('Test Data Processing Done')
         #print('Test Data Processing Done')
     except Exception as e:
@@ -206,7 +206,7 @@ def test_function():
     try:
         train_data = pd.read_csv(os.path.join(CONFIG.MODEL_PATH, 'train_data.csv'))
         train_data = process_histloads(train_data,  city_df, cluster_df)
-        train_data.to_csv(os.path.join(CONFIG.MODEL_PATH, 'train_data_processed.csv'), index=False)
+        train_data.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'train_data.pkl'))#, index=False)
         LOGGER.info('Train Data Processing Done')
         print('Train Data Processing Done')
     except Exception as e:

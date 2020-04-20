@@ -114,11 +114,12 @@ class Config(object):
 
     try:
         f = io.open(VERSION_FILE, 'r', encoding='utf-16-le')
-        API_VERSION = f.readline().strip().replace(u'\ufeff', '')
+        #API_VERSION = f.readline().strip().replace(u'\ufeff', '')
+        API_VERSION = 'Scheduling_Mimic_Api_1.0.0'
         f.close()
     except Exception as e:
         LOGGER.error('Fail to get the version: {}'.format(e))
-        API_VERSION = 'TruckNorris.XXX'
+        API_VERSION = 'Scheduling_Mimic_Api_1.0.0'
 
 
 try:
