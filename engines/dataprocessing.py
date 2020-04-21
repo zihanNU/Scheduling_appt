@@ -15,6 +15,7 @@ P_code = ['P','PO']
 LOGGER = logging.getLogger(__name__)
 CONFIG = config.Config()
 
+
 def assign_latlong_bycity(df,   city_df ):
     ##We need to change this function, as it is an Query related one.
     """ Query and assign lat and long based on a cityid passed in """
@@ -48,8 +49,6 @@ def encode_load(df, columnname):
     df['P'] = df[columnname].isin(P_code)
     LOGGER.info("Encoding Equipment Type for loads done")
     return df
-
-
 
 
 def process_liveloads(df, city_df, cluster_df):
