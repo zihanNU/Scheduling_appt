@@ -31,6 +31,7 @@ def api_json_output(results_df):
         results_df.sort_values(by=['LoadDate', 'PU_Facility', 'DO_Facility'], inplace=True)
         results_df.reset_index(drop=True, inplace=True)
         status = 'load scheduling done'
+        results_df['LoadDate'] = results_df['LoadDate'].apply(lambda x: x.strftime("%Y-%m-%d"))
         results_df['PU_ScheduleTime'] = results_df['PU_ScheduleTime'].apply(lambda x: x.strftime("%Y-%m-%d %R"))
         results_df['DO_ScheduleTime'] = results_df['DO_ScheduleTime'].apply(lambda x: x.strftime("%Y-%m-%d %R"))
         return results_df.to_dict('records'), status
@@ -49,7 +50,7 @@ def schedule_mimic(newloads_df, histloads_df, facility_hour_df, loadID, pre_resu
     col_rename = {'pu_scheduletime': 'PU_ScheduleTime', 'do_scheduletime': 'DO_ScheduleTime'}
     scheduler_results_df.rename(columns=col_rename, inplace=True)
     api_features = ['LoadID', 'LoadDate', 'PU_Facility', 'PU_ScheduleTime', 'DO_Facility', 'DO_ScheduleTime']
-    final_results = pd.concat([scheduler_results_df[api_features]], pre_results, axis=0)
+    final_results = pd.concat([scheduler_results_df[api_features], pre_results], axis=0)
     final_results.drop_duplicates(subset='LoadID', inplace=True)
     final_results.reset_index(drop=True, inplace=True)
     filename_APPT = 'app_scheduler_results{0}.pkl'.format(datetime.datetime.now().strftime('%Y-%m-%d'))

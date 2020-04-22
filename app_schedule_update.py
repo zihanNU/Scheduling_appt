@@ -108,7 +108,7 @@ def scheduler():
     try:
         LOGGER.info("Start to Process for api at time {0}".format(datetime.datetime.now()))
         values = CaseInsensitiveDict(request.values.to_dict())
-        loadID = values.get('LoadID', type=int, default=0)
+        loadID = values.get('loadid', type=int, default=0)
 
         result_json, status = schedule_mimic(newloads_df=NEWLOAD_DF, histloads_df=HISTLOAD_DF,
                                              facility_hour_df=FACILITY_HOUR_DF, loadID=loadID,
