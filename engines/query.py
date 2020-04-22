@@ -69,7 +69,7 @@ class QueryEngine():
         return self._df_from_sql_query("DB research science", "EXEC [dbo].[uspScheduling_CityInfo]")
 
     def get_liveload(self):
-        sql_command = "EXEC [dbo].[uspScheduling_GetLiveLoad] @LoadUpdateDateTime = '{}'".format(
+        sql_command = "EXEC [dbo].[uspScheduling_GetLiveLoad] @today = '{}'".format(
             pd.Timestamp('today').to_period("D") # start date
         )
         return self._df_from_sql_query("DB research science", sql_command)

@@ -23,13 +23,9 @@ def main():
         os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_cluster_info.pkl'))
     newloads_df = QUERY.get_liveload()
     loads_df = process_liveloads(newloads_df, city_info, cluster_info)
-    loads_df.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'live_bazooka_loads.pkl'))
+    loads_df.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_live_loads.pkl'))
     LOGGER.info('Loading Live Data Done...')
     return loads_df
-
-
-if __name__ == '__main__':
-    main()
 
 
 def get_liveloads():
@@ -59,3 +55,5 @@ def get_liveloads():
     return loads_df_new
 
 
+if __name__ == '__main__':
+    get_liveloads()

@@ -114,8 +114,7 @@ def build_pickle_offset_info():
                     lambda x: offset(x['TimeZone']), axis=1)
                 cityinfo = pd.concat([cityinfo_origin, cityinfo_new], axis=0).reset_index(drop=True)
             else:
-                cityinfo['StateID'].fillna(-99, inplace=True)
-                dtype_dict = {'CityID': np.int32, 'StateID': np.int32, 'offset': np.float32}
+                dtype_dict = {'CityID': np.int32, 'offset': np.float32}
                 cityinfo_origin = cityinfo_origin.astype(dtype_dict)
                 cityinfo_origin = cityinfo_origin.sort_values('UpdateDate', ascending=True).drop_duplicates(subset=['CityID'], keep='last')
                 cityinfo_origin.to_pickle(
@@ -124,9 +123,8 @@ def build_pickle_offset_info():
             cityinfo = cityinfo.sort_values(['CityID', 'UpdateDate'], ascending=True).drop_duplicates(subset=['CityID'], keep='last')
         else:
             cityinfo['offset'] = cityinfo.apply(
-                lambda x: offset(x['TimeZone'], CONFIG.TIMEZONEBASE), axis=1)
-        cityinfo['StateID'].fillna(-99, inplace=True)
-        dtype_dict = {'CityID': np.int32, 'StateID': np.int32, 'offset': np.float32}
+                lambda x: offset(x['TimeZone']), axis=1)
+        dtype_dict = {'CityID': np.int32,  'offset': np.float32}
         cityinfo = cityinfo.astype(dtype_dict)
         cityinfo.to_pickle(
             os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl'))
@@ -173,7 +171,7 @@ def build_pickle_hist_loads_df(city_df, cluster_df):
 
 def hist_cache():
     os.makedirs(CONFIG.MODEL_PATH, exist_ok=True)
-    daily_update()
+    #daily_update()
     LOGGER.info('Update Historical Data...')
     #### Initilizer Start#####
 
