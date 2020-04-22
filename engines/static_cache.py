@@ -171,7 +171,7 @@ def build_pickle_hist_loads_df(city_df, cluster_df):
 
 def hist_cache():
     os.makedirs(CONFIG.MODEL_PATH, exist_ok=True)
-    #daily_update()
+    daily_update()
     LOGGER.info('Update Historical Data...')
     #### Initilizer Start#####
 

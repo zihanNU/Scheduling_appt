@@ -43,7 +43,8 @@ def get_liveloads():
     if os.path.exists(load_file):
         loads_df = pd.read_pickle(load_file)
         updatedatetime = loads_df.UpdateDate.max()
-        newloads_df = newloads_df.loc[newloads_df[updatedatetime] > updatedatetime]
+        timedelta = (pd.to_datetime(newloads_df['UpdateDate']) - pd.to_datetime(updatedatetime))/ pd.to_timedelta(1,unit='h')
+        newloads_df = newloads_df.loc[timedelta > 0.0]
         loads_df_new = process_liveloads(newloads_df, city_info, cluster_info)
         loads_df = pd.concat([loads_df, loads_df_new], axis=0)
         loads_df.reset_index(drop=True, inplace=True)
