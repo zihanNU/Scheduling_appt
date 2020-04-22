@@ -18,7 +18,7 @@ from engines.dynamic_cache import get_liveloads
 from engines.spread_function import scheduler_spread
 from engines.feasibility_function import feasibility_check
 from engines.case_insensitive_dict import CaseInsensitiveDict
-
+from engines.app_schedule_model import schedule_mimic
 
 import config
 import logging
@@ -54,53 +54,52 @@ def api_json_output(results_df):
         results_df['DO_ScheduleTime'] = results_df['DO_ScheduleTime'].apply(lambda x: x.strftime("%Y-%m-%d %R"))
         return results_df.to_dict('records'), status
 
+
+def create_app():
+    app = Flask(__name__)
+
+    LOGGER.info("*** System Initialization ***")
+    global HISTLOAD_DF
+    global FACILITY_HOUR_DF
+    global NEWLOAD_DF
+    try:
+        # histloads_df = init_read_histload('train_data.pkl')
+        # facility_hour_df = init_read_facility('facility_hour.pkl')
+        # newloads_df = init_read_liveload('test_data.pkl')
+        HISTLOAD_DF = init_read_histload('train_data_processed_cv.csv')
+        FACILITY_HOUR_DF = init_read_facility('app_scheduler_facility_info.pkl')
+        NEWLOAD_DF = init_read_liveload('test_data_processed_cv.csv')
+            #init_read_liveload('test_data_processed_cv.csv')
+        LOGGER.info("*** System Ready for Requests ***")
+
+    except Exception as e:
+        LOGGER.exception(e)
+    return app
+
+app = create_app()
+
 @app.route('/schedule_mimic/', methods=['GET'], strict_slashes=False)
 def scheduler():
+    global HISTLOAD_DF
+    global FACILITY_HOUR_DF
+    global NEWLOAD_DF
+
     try:
         LOGGER.info("Start to Process for api at time {0}".format(datetime.datetime.now()))
         values = CaseInsensitiveDict(request.values.to_dict())
         loadID = values.get('LoadID', type=int, default=0)
-        if loadID > 0:
-            newloads_url_df = newloads_df.loc[newloads_df['LoadID'] == loadID]
-            results_df1, results_df2 = scheduler_model(newloads_url_df, histloads_df)
-        else:
-            results_df1, results_df2 = scheduler_model(newloads_df, histloads_df)
-        results_df1 = scheduler_spread(results_df1)  # after this step, reset the column names of df1 into df2.
-        results_df = pd.concat([results_df1, results_df2], axis=0, ignore_index=True)
-        scheduler_results_df = feasibility_check(results_df, facility_hour_df)
 
-        col_rename = {'pu_scheduletime': 'PU_ScheduleTime', 'do_scheduletime': 'DO_ScheduleTime'}
-        scheduler_results_df.rename(columns=col_rename, inplace=True)
-        api_features = ['LoadID', 'LoadDate', 'PU_Facility', 'PU_ScheduleTime', 'DO_Facility', 'DO_ScheduleTime']
-        #scheduler_results_df[features].to_csv(os.path.join(CONFIG.MODEL_PATH, 'test_results_cv.csv'), index=False)
+        result_json, status = schedule_mimic(newloads_df=NEWLOAD_DF, histloads_df=HISTLOAD_DF,
+                                             facility_hour_df=FACILITY_HOUR_DF, loadID=loadID)
 
         LOGGER.info("END: Mimic Scheduling Process")
 
-        result_json, status = api_json_output(scheduler_results_df[api_features])
         LOGGER.info("Finish to Process for api at time {0}".format(datetime.datetime.now()))
 
         return jsonify({'Loads': result_json, "Version": CONFIG.API_VERSION, "Status": status})
 
-
     except Exception as ex:
         LOGGER.error(ex)
-
-
-LOGGER.info("*** System Initialization ***")
-
-try:
-    # histloads_df = init_read_histload('train_data.pkl')
-    # facility_hour_df = init_read_facility('facility_hour.pkl')
-    # newloads_df = init_read_liveload('test_data.pkl')
-    histloads_df = init_read_histload('train_data_processed_cv.csv')
-    facility_hour_df = init_read_facility('app_scheduler_facility_info.pkl')
-    newloads_df = init_read_liveload('test_data_processed_cv.csv')
-        #get_liveloads()
-
-    LOGGER.info("*** System Ready for Requests ***")
-
-except Exception as e:
-    LOGGER.exception(e)
 
 
 if __name__ == '__main__':

@@ -52,7 +52,6 @@ class Config(object):
     OD_DIST_SCALE = int(node.xpath('//add[@key="odDistScale"]')[0].attrib['value'])
     TIMEZONEBASE = str(node.xpath('//add[@key="TimeZoneBase"]')[0].attrib['value'])
 
-
     _live_update_start_time = node.xpath(
         '//add[@key="liveUpdateStartTime"]')[0].attrib['value']
     _live_update_end_time = node.xpath(
