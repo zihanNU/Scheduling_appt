@@ -50,10 +50,9 @@ def get_liveloads():
         loads_df.reset_index(drop=True, inplace=True)
     else:
         loads_df = process_liveloads(newloads_df, city_info, cluster_info)
-        loads_df_new = loads_df.copy
     loads_df.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_live_loads.pkl'))
     LOGGER.info('Loading Live Data Done...')
-    return loads_df_new
+    return
 
 
 if __name__ == '__main__':

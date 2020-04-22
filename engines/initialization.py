@@ -47,11 +47,12 @@ def init_read_liveload(filename):
 def init_read_facility(filename):
     try:
         facility_hour = pd.read_pickle(os.path.join(CONFIG.MODEL_PATH, filename))
+        facility_hour_df = facility_hour[facility_hour['Tag'] < 7]
     except Exception as e:
-        facility_hour = pd.DataFrame()
+        facility_hour_df = pd.DataFrame()
         LOGGER.error("Cannot Find facility_hour File")
         LOGGER.exception(e)
-    return facility_hour[facility_hour['Tag'] < 7]
+    return facility_hour_df
 
 
 def init_read_preresults(filename):

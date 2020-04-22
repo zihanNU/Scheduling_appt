@@ -33,6 +33,8 @@ DATA_UPDATE_THREAD = threading.Thread()
 POOL_TIME_LIVE_LOADS = 1800 # 30 minutes
 
 def create_app():
+    get_liveloads()  #
+
     app = Flask(__name__)
 
     def interrupt():
@@ -54,7 +56,7 @@ def create_app():
             try:
                 HISTLOAD_DF = init_read_histload('app_scheduler_histloads.pkl')
                 FACILITY_HOUR_DF = init_read_facility('app_scheduler_facility_info.pkl')
-                NEWLOAD_DF = get_liveloads()#init_read_liveload('app_scheduler_live_loads.pkl')
+                NEWLOAD_DF = init_read_liveload('app_scheduler_live_loads.pkl')
                 filename_APPT = 'app_scheduler_results{0}.pkl'.format(datetime.datetime.now().strftime('%Y-%m-%d'))
                 SCHEDULE_APPT = init_read_preresults(filename_APPT)
                 #get_liveloads()
@@ -77,7 +79,8 @@ def create_app():
 
         with dataLock:
             # get live bazooka
-            NEWLOAD_DF = get_liveloads()#init_read_liveload('app_scheduler_live_loads.pkl')
+            get_liveloads()  #
+            NEWLOAD_DF = init_read_liveload('app_scheduler_live_loads.pkl')
             filename_APPT = 'app_scheduler_results{0}.pkl'.format(datetime.datetime.now().strftime('%Y-%m-%d'))
             SCHEDULE_APPT = init_read_preresults(filename_APPT)
 
@@ -128,8 +131,7 @@ LOGGER.info("*** System Initialization ***")
 
 
 if __name__ == '__main__':
-    hist_cache()
-    app.run(debug=True)
+    app.run(debug=True,port=5050, threaded=True, host='localhost')
 
 
 

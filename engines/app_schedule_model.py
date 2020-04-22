@@ -51,7 +51,7 @@ def schedule_mimic(newloads_df, histloads_df, facility_hour_df, loadID, pre_resu
     scheduler_results_df.rename(columns=col_rename, inplace=True)
     api_features = ['LoadID', 'LoadDate', 'PU_Facility', 'PU_ScheduleTime', 'DO_Facility', 'DO_ScheduleTime']
     final_results = pd.concat([scheduler_results_df[api_features], pre_results], axis=0)
-    final_results.drop_duplicates(subset='LoadID', inplace=True)
+    final_results.drop_duplicates(subset='LoadID', inplace=True, keep='first')
     final_results.reset_index(drop=True, inplace=True)
     filename_APPT = 'app_scheduler_results{0}.pkl'.format(datetime.datetime.now().strftime('%Y-%m-%d'))
     final_results.to_pickle(os.path.join(CONFIG.MODEL_PATH, filename_APPT))
