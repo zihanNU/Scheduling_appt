@@ -43,7 +43,7 @@ def get_liveloads():
         newloads_df = QUERY.get_liveload()
     except Exception as e:
         LOGGER.exception(e)
-    load_file = os.path.join(CONFIG.MODEL_PATH, 'df_live_bazooka_loads.pkl')
+    load_file = os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_live_loads.pkl')
     if os.path.exists(load_file):
         loads_df = pd.read_pickle(load_file)
         updatedatetime = loads_df.UpdateDate.max()
@@ -53,9 +53,9 @@ def get_liveloads():
         loads_df.reset_index(drop=True, inplace=True)
     else:
         loads_df = process_liveloads(newloads_df, city_info, cluster_info)
-
-    loads_df.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'df_live_bazooka_loads_cf.pkl'))
+        loads_df_new = loads_df.copy
+    loads_df.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_live_loads.pkl'))
     LOGGER.info('Loading Live Data Done...')
-    return loads_df
+    return loads_df_new
 
 

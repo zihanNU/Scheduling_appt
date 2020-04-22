@@ -16,15 +16,15 @@ def init_read_histload(filename):
                 'OriginClusterID', 'DestinationLatitude', 'DestinationLongitude',
                 'DOOffset', 'DestinationClusterID', 'PU_Transit_Minute']
     try:
-        hist_data = pd.read_csv(os.path.join(CONFIG.MODEL_PATH, filename))
-        hist_data.rename(columns={'PU_FacilityID': 'PU_Facility', 'DOAppt': 'DO_Appt', 'DO_FacilityID': 'DO_Facility',
+        hist_data_df = pd.read_pickle(os.path.join(CONFIG.MODEL_PATH, filename))
+        hist_data_df.rename(columns={'PU_FacilityID': 'PU_Facility', 'DOAppt': 'DO_Appt', 'DO_FacilityID': 'DO_Facility',
                                   'PUScheduleType': 'PU_ScheduleType',  'DOScheduleType': 'DO_ScheduleType'},
                          inplace=True)
     except Exception as e:
-        hist_data = pd.DataFrame(columns=[features])
-        LOGGER.error("Cannot Find train_data File")
+        hist_data_df = pd.DataFrame(columns=[features])
+        LOGGER.error("Cannot Find hist load File")
         LOGGER.exception(e)
-    return hist_data[features]
+    return hist_data_df[features]
 
 
 def init_read_liveload(filename):
@@ -35,13 +35,13 @@ def init_read_liveload(filename):
                 'OriginLatitude', 'OriginLongitude', 'PUOffset', 'DestinationLatitude',
                 'DestinationLongitude', 'DOOffset', 'OriginClusterID', 'DestinationClusterID']
     try:
-        live_data = pd.read_csv(os.path.join(CONFIG.MODEL_PATH, filename))
+        live_data_df = pd.read_pickle(os.path.join(CONFIG.MODEL_PATH, filename))
 
     except Exception as e:
-        live_data = pd.DataFrame(columns=features)
-        LOGGER.error("Cannot Find test_data File")
+        live_data_df = pd.DataFrame(columns=features)
+        LOGGER.error("Cannot Find live load File")
         LOGGER.exception(e)
-    return live_data#.loc[live_data['LoadID'].isin([17481586, 17481590]), features]
+    return live_data_df#.loc[live_data['LoadID'].isin([17481586, 17481590]), features]
 
 
 def init_read_facility(filename):
@@ -53,3 +53,13 @@ def init_read_facility(filename):
         LOGGER.exception(e)
     return facility_hour[facility_hour['Tag'] < 7]
 
+
+def init_read_preresults(filename):
+    features = ['LoadID', 'LoadDate', 'PU_Facility', 'PU_ScheduleTime', 'DO_Facility', 'DO_ScheduleTime']
+    try:
+        preresults_df = pd.read_pickle(os.path.join(CONFIG.MODEL_PATH, filename))
+    except Exception as e:
+        preresults_df = pd.DataFrame(columns=features)
+        LOGGER.error("Cannot Find previous results File")
+        LOGGER.exception(e)
+    return preresults_df

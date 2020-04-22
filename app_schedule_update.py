@@ -7,7 +7,7 @@ from flask import Flask, jsonify, request
 import atexit
 import threading
 import datetime
-from engines.initialization import init_read_histload, init_read_facility, init_read_liveload
+from engines.initialization import init_read_histload, init_read_facility, init_read_liveload, init_read_preresults
 from engines.query import QueryEngine
 from engines.app_schedule_model import schedule_mimic
 from engines.dynamic_cache import get_liveloads
@@ -17,7 +17,6 @@ from engines.case_insensitive_dict import CaseInsensitiveDict
 import config
 import logging
 
-now = datetime.datetime.now()
 QUERY = QueryEngine()
 
 CONFIG = config.Config()
@@ -30,7 +29,7 @@ LOGGER.info("** API Starting **")
 dataLock = threading.Lock()
 # thread handler
 DATA_UPDATE_THREAD = threading.Thread()
-POOL_TIME_LIVE_LOADS = 120 # 30 minutes
+POOL_TIME_LIVE_LOADS = 1800 # 30 minutes
 
 def create_app():
     app = Flask(__name__)
@@ -49,13 +48,16 @@ def create_app():
         global FACILITY_HOUR_DF
         global NEWLOAD_DF
         global DATA_UPDATE_THREAD
+        global SCHEDULE_APPT
 
         with dataLock:
             try:
-                HISTLOAD_DF = init_read_histload('train_data_processed_cv.csv')
+                HISTLOAD_DF = init_read_histload('app_scheduler_histloads.pkl')
                 FACILITY_HOUR_DF = init_read_facility('app_scheduler_facility_info.pkl')
-                NEWLOAD_DF = init_read_liveload('test_data_processed_cv.csv')
-                    #get_liveloads()  in actual one, we can do from SQL directly
+                NEWLOAD_DF = init_read_liveload('app_scheduler_live_loads.pkl')
+                filename_APPT = 'app_scheduler_results{0}.pkl'.format(datetime.datetime.now().strftime('%Y-%m-%d'))
+                SCHEDULE_APPT = init_read_preresults(filename_APPT)
+                #get_liveloads()
 
                 LOGGER.info("*** System Ready for Requests ***")
 
@@ -71,9 +73,14 @@ def create_app():
         """
         global NEWLOAD_DF
         global DATA_UPDATE_THREAD
+        global SCHEDULE_APPT
+
         with dataLock:
             # get live bazooka
-            NEWLOAD_DF = init_read_liveload('test_data_processed_cv.csv')
+            NEWLOAD_DF = init_read_liveload('app_scheduler_live_loads.pkl')
+            filename_APPT = 'app_scheduler_results{0}.pkl'.format(datetime.datetime.now().strftime('%Y-%m-%d'))
+            SCHEDULE_APPT = init_read_preresults(filename_APPT)
+
             LOGGER.info("*** System Data Update ***")
 
         # Set the next thread to happen
@@ -96,6 +103,7 @@ def scheduler():
     global HISTLOAD_DF
     global FACILITY_HOUR_DF
     global NEWLOAD_DF
+    global SCHEDULE_APPT
 
     try:
         LOGGER.info("Start to Process for api at time {0}".format(datetime.datetime.now()))
@@ -103,7 +111,8 @@ def scheduler():
         loadID = values.get('LoadID', type=int, default=0)
 
         result_json, status = schedule_mimic(newloads_df=NEWLOAD_DF, histloads_df=HISTLOAD_DF,
-                                             facility_hour_df=FACILITY_HOUR_DF, loadID=loadID)
+                                             facility_hour_df=FACILITY_HOUR_DF, loadID=loadID,
+                                             pre_results=SCHEDULE_APPT)
 
         LOGGER.info("END: Mimic Scheduling Process")
 

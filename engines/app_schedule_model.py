@@ -1,5 +1,4 @@
-from flask import Flask, jsonify, request
-
+import os
 import pandas as pd
 import datetime
 from engines.scheduling_model import scheduler_model
@@ -37,7 +36,7 @@ def api_json_output(results_df):
         return results_df.to_dict('records'), status
 
 
-def schedule_mimic(newloads_df, histloads_df, facility_hour_df, loadID):
+def schedule_mimic(newloads_df, histloads_df, facility_hour_df, loadID, pre_results):
     if loadID > 0:
         newloads_url_df = newloads_df.loc[newloads_df['LoadID'] == loadID]
         results_df1, results_df2 = scheduler_model(newloads_url_df, histloads_df)
@@ -50,10 +49,12 @@ def schedule_mimic(newloads_df, histloads_df, facility_hour_df, loadID):
     col_rename = {'pu_scheduletime': 'PU_ScheduleTime', 'do_scheduletime': 'DO_ScheduleTime'}
     scheduler_results_df.rename(columns=col_rename, inplace=True)
     api_features = ['LoadID', 'LoadDate', 'PU_Facility', 'PU_ScheduleTime', 'DO_Facility', 'DO_ScheduleTime']
-    # scheduler_results_df[features].to_csv(os.path.join(CONFIG.MODEL_PATH, 'test_results_cv.csv'), index=False)
+    final_results = pd.concat([pre_results, scheduler_results_df[api_features]], axis=0)
+    filename_APPT = 'app_scheduler_results{0}.pkl'.format(datetime.datetime.now().strftime('%Y-%m-%d'))
+    final_results.to_pickle(os.path.join(CONFIG.MODEL_PATH, filename_APPT))
 
     LOGGER.info("END: Mimic Scheduling Process")
 
-    result_json, status = api_json_output(scheduler_results_df[api_features])
+    result_json, status = api_json_output(final_results)
     LOGGER.info("Finish to Process for api at time {0}".format(datetime.datetime.now()))
     return result_json, status
