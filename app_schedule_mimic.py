@@ -12,6 +12,7 @@ from engines.query import QueryEngine
 from engines.app_schedule_model import schedule_mimic
 from engines.dynamic_cache import get_liveloads
 from engines.case_insensitive_dict import CaseInsensitiveDict
+from engines.static_cache import hist_cache
 
 
 import config
@@ -49,7 +50,6 @@ def create_app():
         global NEWLOAD_DF
         global DATA_UPDATE_THREAD
         global SCHEDULE_APPT
-
         with dataLock:
             try:
                 HISTLOAD_DF = init_read_histload('app_scheduler_histloads.pkl')
@@ -128,6 +128,7 @@ LOGGER.info("*** System Initialization ***")
 
 
 if __name__ == '__main__':
+    hist_cache()
     app.run(debug=True)
 
 
