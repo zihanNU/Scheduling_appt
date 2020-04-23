@@ -12,7 +12,6 @@ from engines.query import QueryEngine
 from engines.app_schedule_model import schedule_mimic
 from engines.dynamic_cache import get_liveloads
 from engines.case_insensitive_dict import CaseInsensitiveDict
-from engines.static_cache import hist_cache
 
 
 import config
@@ -110,6 +109,7 @@ def scheduler():
 
     try:
         LOGGER.info("Start to Process for api at time {0}".format(datetime.datetime.now()))
+        LOGGER.info("We have {0} new loads and {1} hist loads".format(NEWLOAD_DF.shape[0], HISTLOAD_DF.shape[0]))
         values = CaseInsensitiveDict(request.values.to_dict())
         loadID = values.get('loadid', type=int, default=0)
 

@@ -85,6 +85,12 @@ class Config(object):
     logging.config.dictConfig(LOGGING_CONFIG)
     LOGGER = logging.getLogger(__name__)
 
+    FNAME = 'SchedulingDataLoading.'+ datetime.datetime.now().strftime('%Y-%m-%d')+'.log'
+    LOGGING_CONFIG['handlers']['file_handler']['filename'] = os.path.join(LOG_PATH, FNAME)
+
+    logging.config.dictConfig(LOGGING_CONFIG)
+    LOGGERDATA = logging.getLogger(__name__)
+
     HOST_NAME = node.xpath('//add[@key="ServerName"]')[0].attrib['value']
     PORT_NUM = int(node.xpath('//add[@key="ServerPort"]')[0].attrib['value'])
 
@@ -114,7 +120,7 @@ class Config(object):
     ENABLE_QUERIES = int(_updates.find('enableQueries').text)
 
     try:
-        f = io.open(VERSION_FILE, 'r', encoding='utf-16-le')
+        #f = io.open(VERSION_FILE, 'r', encoding='utf-16-le')
         #API_VERSION = f.readline().strip().replace(u'\ufeff', '')
         API_VERSION = 'Scheduling_Mimic_Api_1.0.0'
         f.close()
