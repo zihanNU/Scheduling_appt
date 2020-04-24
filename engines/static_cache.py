@@ -65,13 +65,22 @@ def build_pickle_facility_df():
     while facility_hour is None:
         try:
             facility_info = QUERY.get_facility_initial()
+            facility_info = pd.DataFrame(['FacilityID', 'UpdateDate'])
             facility_info = facility_info.sort_values(['FacilityID', 'UpdateDate'], ascending=True).\
                 drop_duplicates(subset=['FacilityID'], keep='last')
+        except Exception as ex:
+            LOGGERDATA.exception("Exception while running get_cluster_initial(): (attempt=={}): {}".format(
+                backoff_index, repr(ex)))
+            backoff_index += 1  # begin at BACKOFF_FACTOR seconds
+            time.sleep(min(BACKOFF_FACTOR**backoff_index, MAX_BACKOFF))
+        try:  
             facility_file = os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_facility_info.pkl')
             if os.path.exists(facility_file) and os.path.getsize(facility_file) > 100:
-                facility_origin = pd.read_pickle(facility_file).reset_index()
+                facility_origin = pd.read_pickle(facility_file)
+                facility_origin.index = facility_origin.index.set_names(['FacilityID'])
+                facility_origin.reset_index(inplace=True)#.rename(columns={facility_origin.index.name:'FacilityID'})
                 facility_origin = facility_origin.sort_values(['FacilityID', 'UpdateDate'], ascending=True).\
-                    drop_duplicates(subset=['FacilityID'], keep='last')
+                drop_duplicates(subset=['FacilityID'], keep='last')
                 max_timestamp = facility_origin.UpdateDate.max()
                 facilityinfo_new = facility_info.loc[facility_info['UpdateDate'] > max_timestamp]
                 if 'Tag' not in facility_origin.columns:
@@ -80,12 +89,9 @@ def build_pickle_facility_df():
                     facility_datanew = get_facility_hour(facilityinfo_new)
                     facility_data = pd.concat([facility_origin, facility_datanew], axis=0, ignore_index=True)
                 else:
-                    facility_origin = facility_origin.sort_values('UpdateDate', ascending=True).drop_duplicates(
-                        subset=['FacilityID'], keep='last')
-                    facility_origin.to_pickle(os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_facility_info.pkl'))
-                    return
+                    facility_data = facility_origin.copy()
                 facility_data = facility_data.sort_values(['FacilityID', 'UpdateDate'], ascending=True).drop_duplicates(
-                    subset=['FacilityID'], keep='last')
+                        subset=['FacilityID'], keep='last')
             else:
                 facility_data = get_facility_hour(facility_info)
             facility_data.set_index('FacilityID', drop=True, inplace=True)
@@ -118,12 +124,7 @@ def build_pickle_offset_info():
                     lambda x: offset(x['TimeZone']), axis=1)
                 cityinfo = pd.concat([cityinfo_origin, cityinfo_new], axis=0).reset_index(drop=True)
             else:
-                dtype_dict = {'CityID': np.int32, 'offset': np.float32}
-                cityinfo_origin = cityinfo_origin.astype(dtype_dict)
-                cityinfo_origin = cityinfo_origin.sort_values('UpdateDate', ascending=True).drop_duplicates(subset=['CityID'], keep='last')
-                cityinfo_origin.to_pickle(
-                    os.path.join(CONFIG.MODEL_PATH, 'app_scheduler_city_info.pkl'))
-                return cityinfo_origin
+                cityinfo =  cityinfo_origin.copy()
             cityinfo = cityinfo.sort_values(['CityID', 'UpdateDate'], ascending=True).drop_duplicates(subset=['CityID'], keep='last')
         else:
             cityinfo['offset'] = cityinfo.apply(

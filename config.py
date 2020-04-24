@@ -85,12 +85,6 @@ class Config(object):
     logging.config.dictConfig(LOGGING_CONFIG)
     LOGGER = logging.getLogger(__name__)
 
-    FNAME = 'SchedulingDataLoading.'+ datetime.datetime.now().strftime('%Y-%m-%d')+'.log'
-    LOGGING_CONFIG['handlers']['file_handler']['filename'] = os.path.join(LOG_PATH, FNAME)
-
-    logging.config.dictConfig(LOGGING_CONFIG)
-    LOGGERDATA = logging.getLogger(__name__)
-
     HOST_NAME = node.xpath('//add[@key="ServerName"]')[0].attrib['value']
     PORT_NUM = int(node.xpath('//add[@key="ServerPort"]')[0].attrib['value'])
 
